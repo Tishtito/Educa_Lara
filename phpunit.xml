@@ -23,8 +23,13 @@
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>
-        <env name="DB_CONNECTION" value="sqlite"/>
-        <env name="DB_DATABASE" value=":memory:"/>
+        <!-- MySQL, not sqlite :memory:. The migrations use MySQL enum() columns
+             and carry hand-written short index names (exam_subjects_unique,
+             ess_subject_mean_idx, ...) that exist only because of MySQL's 64-char
+             identifier limit. SQLite accepts all of it silently, so testing on it
+             would hide breakage in exactly the places most likely to break. -->
+        <env name="DB_CONNECTION" value="mysql"/>
+        <env name="DB_DATABASE" value="educa_lara_test"/>
         <env name="DB_URL" value=""/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>

@@ -9,6 +9,8 @@ use App\Domain\Academics\Models\Level;
 use App\Domain\Academics\Models\SchoolClass;
 use App\Domain\Academics\Models\Term;
 use App\Domain\Examination\Enums\ExamStatus;
+use App\Domain\Examination\Enums\ExamType;
+use App\Domain\Examination\Enums\MeanPolicy;
 use App\Domain\Examination\Enums\TiePolicy;
 use App\Domain\Tenancy\Concerns\BelongsToSchool;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -30,6 +32,8 @@ class Exam extends Model
     {
         return [
             'status' => ExamStatus::class,
+            'exam_type' => ExamType::class,
+            'mean_policy' => MeanPolicy::class,
             'tie_policy' => TiePolicy::class,
             'starts_on' => 'date',
             'ends_on' => 'date',
