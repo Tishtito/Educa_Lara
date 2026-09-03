@@ -18,7 +18,9 @@ class Level extends Model
     use HasFactory;
 
     public const LOWER_PRIMARY = 'lower_primary';
+
     public const UPPER_PRIMARY = 'upper_primary';
+
     public const JUNIOR_SECONDARY = 'junior_secondary';
 
     protected $guarded = ['id'];

@@ -17,7 +17,7 @@ trait BelongsToSchool
 {
     public static function bootBelongsToSchool(): void
     {
-        static::addGlobalScope(new TenantScope());
+        static::addGlobalScope(new TenantScope);
 
         static::creating(function ($model): void {
             if ($model->school_id !== null) {

@@ -17,8 +17,11 @@ class Role extends Model
     use HasFactory;
 
     public const SUPER_ADMIN = 'super_admin';
+
     public const SCHOOL_ADMIN = 'school_admin';
+
     public const CLASS_TEACHER = 'class_teacher';
+
     public const EXAMINER = 'examiner';
 
     protected $guarded = ['id'];
