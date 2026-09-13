@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Domain\People\Models\Role;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\ExamComputationController;
 use App\Http\Controllers\Api\ExamController;
 use App\Http\Controllers\Api\MarklistController;
 use Illuminate\Support\Facades\Route;
@@ -40,6 +41,9 @@ Route::middleware(['auth:sanctum', 'tenant'])->group(function (): void {
     Route::get('exams', [ExamController::class, 'index']);
     Route::get('exams/{exam}', [ExamController::class, 'show']);
     Route::post('exams', [ExamController::class, 'store'])
+        ->middleware('role:'.Role::SCHOOL_ADMIN);
+
+    Route::post('exams/{exam}/compute', ExamComputationController::class)
         ->middleware('role:'.Role::SCHOOL_ADMIN);
 
     Route::get('exams/{exam}/marklist', MarklistController::class)

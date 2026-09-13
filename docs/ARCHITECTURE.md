@@ -189,6 +189,59 @@ deployment stored a sum. Collapsing them would silently rewrite every UCC report
   `legacy_stream_position` — carried by the ETL so `legacy:verify` can compare
   without the source database online. **Dropped after cutover.**
 
+### The computation pipeline
+
+`ExamComputationService::compute(Exam)` turns entered paper marks into
+everything the reports read. It is triggered explicitly — `POST
+/api/exams/{exam}/compute` (school admin) or `php artisan exams:compute {id}` —
+never as a side effect of viewing a page, which is what legacy did.
+
+**Inputs are only the entered rows.** Derived subject rows, result aggregates
+and positions, and `exam_statistics` are all rebuilt from scratch in one
+transaction, under a row lock on the exam, so a run is idempotent and concurrent
+runs serialise. `legacy_*` columns are never written. It runs as the exam's own
+school whatever the ambient tenant, so console, queue and HTTP agree.
+
+Allowed while the exam is `marking` or `locked` (recomputing a locked exam is
+harmless — its marks cannot change). `draft`, `open`, `published` and
+`archived` are refused, the API answering 409: a published exam has report
+cards in circulation.
+
+| Service | Pure? | Does |
+|---|---|---|
+| `AggregationService` | yes | papers → subject score, per `aggregation_rule` |
+| `RankingService` | yes | scores → positions, per `tie_policy` |
+| `StatisticsService` | yes | results → `exam_statistics` rows, per `mean_policy` |
+| `GradeResolver` | no (one per school) | picks the scale, resolves the band |
+| `ExamComputationService` | no | loads, orchestrates, writes |
+
+Rules, and the legacy behaviour each settles:
+
+- **A paper with no entered row leaves its subject pending**: no derived score,
+  student not complete. lower-classes rejected RDG without GRM;
+  Upper-classes-combined treated a missing paper as 0, so a half-marked English
+  looked like a genuinely low score.
+- **An absent paper scores 0 but its max still counts.** Only when every paper
+  is absent is the subject absent (null score, no band). Absent subjects are
+  excluded from totals, means and subject statistics. Absent counts as entered,
+  so an absentee is still complete.
+- **A genuine 0 is a score.** UCC skipped any subject whose sum was 0.
+- **Positions rank `total_marks`**: grade position within the grade, stream
+  position within the class (legacy "streams" are today's classes), subject
+  position within grade and subject. Ties compare at 2 decimal places. Under
+  `legacy_ordinal`, ties break by ascending id — legacy's tiebreak was MySQL row
+  order, which is not reproducible; imported exams carry `legacy_*` positions
+  for exact comparison.
+- **Overall statistics summarise `mean_marks`, not totals**, because totals are
+  not comparable across levels that sit different numbers of subjects.
+- **Scale precedence**: exam paper scale → level-subject scale → school default
+  for the level → school default → platform default for the level → platform
+  default. `legacy_broken` scales are never chosen, and a scale id belonging to
+  another school is ignored rather than trusted.
+
+`DemoSchoolSeeder` enters only paper marks and then runs the real pipeline, so
+the rows the marklist reads come from the same code a school uses.
+
 ---
 
 ## 5. Grading
@@ -273,10 +326,11 @@ happened to have resolved.
 
 ## 8. Conversion status
 
-Verified 2026-09-13: `migrate:fresh --seed` clean on MySQL, 63/63 tests passing,
-and the slice exercised by hand against `php artisan serve` (login, tenant
+Verified 2026-09-13: `migrate:fresh --seed` clean on MySQL, 129/129 tests
+passing, the new services mutation-checked (eight injected bugs, all caught),
+and the slice exercised by hand against `php artisan serve`: login, tenant
 isolation between two seeded schools, marklist, role refusals, superadmin
-`X-School`, token revocation).
+`X-School`, token revocation, and computing exams through the API and console.
 
 | Area | State |
 |---|---|
@@ -286,36 +340,16 @@ isolation between two seeded schools, marklist, role refusals, superadmin
 | Sanctum auth, roles | done, tested |
 | Reference + demo seeders, factories | done |
 | Exams API, marklist read endpoint | done, tested |
-| `AggregationService`, `GradeResolver`, `RankingService`, `StatisticsService` | **not started** — next milestone |
-| Mark entry endpoints (examiner) | not started |
+| Computation pipeline (aggregation, grading, ranking, statistics) + compute endpoint and command | done, tested |
+| Mark entry endpoints (examiner) | **not started** — next milestone |
 | Reports / report cards / PDF | not started — legacy `lower-classes` reports are still changing on `Dev` and must be tracked |
 | Legacy ETL + `legacy:verify` | not started |
 | Analytics (MSS, stream lists) | not started |
 | SMS | not started — legacy only ever appended to `logs/sms.log`; no gateway existed |
 | Fees, attendance, timetable, parent/student portals | absent from legacy; new build, not conversion |
 
-Until the compute services exist, the marklist reads aggregates and grade bands
-that the seeder writes. `DemoSchoolSeeder::aggregate()` is a fixture-only stand-in
-for `AggregationService` and should be deleted once the real one lands.
-
----|---|
-| Schema (30+ tables) | done |
-| Domain models + tenancy kernel | done |
-| Tenancy resolution + enforcement | done, tested |
-| Sanctum auth, roles | done, tested |
-| Reference + demo seeders, factories | done |
-| Exams API, marklist read endpoint | done, tested |
-| `AggregationService`, `GradeResolver`, `RankingService`, `StatisticsService` | **not started** — next milestone |
-| Mark entry endpoints (examiner) | not started |
-| Reports / report cards / PDF | not started |
-| Legacy ETL + `legacy:verify` | not started |
-| Analytics (MSS, stream lists) | not started |
-| SMS | not started — legacy only ever appended to `logs/sms.log`; no gateway existed |
-| Fees, attendance, timetable, parent/student portals | absent from legacy; new build, not conversion |
-
-Until the compute services exist, the marklist reads aggregates and grade bands
-that the seeder writes. `DemoSchoolSeeder::aggregate()` is a fixture-only stand-in
-for `AggregationService` and should be deleted once the real one lands.
+Marks still reach the database only through seeders and factories; the
+examiner-facing mark entry API is the next piece.
 
 ---
 

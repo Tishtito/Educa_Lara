@@ -19,10 +19,10 @@ use App\Domain\Examination\Enums\ExamType;
 use App\Domain\Examination\Enums\MeanPolicy;
 use App\Domain\Examination\Enums\TiePolicy;
 use App\Domain\Examination\Models\Exam;
-use App\Domain\Examination\Models\ExamStudentResult;
 use App\Domain\Examination\Models\ExamSubject;
 use App\Domain\Examination\Models\ExamSubjectPaper;
 use App\Domain\Examination\Models\ExamSubjectScore;
+use App\Domain\Examination\Services\ExamComputationService;
 use App\Domain\Grading\Models\GradingScale;
 use App\Domain\People\Models\ClassTeacherAssignment;
 use App\Domain\People\Models\ExaminerAssignment;
@@ -46,6 +46,9 @@ use Illuminate\Support\Collection;
  *   Mathematics  SINGLE                      - upper-classes
  *   English      PERCENTAGE_OF_COMBINED_MAX  - lower-classes (RDG + GRM) and JSS
  *   Kiswahili    SUM                         - Upper-classes-combined (Lugha + Insha)
+ *
+ * It enters only per-paper marks, then runs ExamComputationService, so the
+ * derived rows the marklist reads are produced by the same code a school uses.
  *
  * Seed a second school by calling run() twice with different arguments; the
  * tenancy tests rely on being able to do that.
@@ -329,23 +332,20 @@ class DemoSchoolSeeder extends Seeder
             }
         }
 
-        $scale->load('bands');
-        $totals = [];
-
+        // Enter marks as an examiner would: one row per paper, nothing derived.
+        // Deterministic pseudo-marks, stable across reseeds and spread across all
+        // four grade bands so the marklist exercises each.
         foreach ($enrolments as $index => $enrolment) {
-            $total = 0.0;
-            $counted = 0;
-
-            foreach ($levelSubjects as $levelSubject) {
-                // Deterministic pseudo-marks: stable across reseeds, and spread
-                // across all four grade bands so the marklist exercises each.
-                $rawScores = [];
-
+            foreach ($levelSubjects as $code => $levelSubject) {
                 foreach ($levelSubject->papers as $paper) {
                     $max = (float) $paper->default_max_marks;
                     $fraction = (($index * 7 + $levelSubject->id * 13 + $paper->sequence * 3) % 61 + 35) / 100;
                     $raw = round($max * $fraction, 2);
-                    $rawScores[] = ['paper' => $paper, 'raw' => $raw, 'max' => $max];
+
+                    // One pupil missed the Social Studies paper, so the absent
+                    // path runs end to end: no score, no band, excluded from the
+                    // subject mean and from their own total and mean.
+                    $absent = $code === 'SST' && $index === count($enrolments) - 1;
 
                     ExamSubjectScore::updateOrCreate(
                         [
@@ -358,125 +358,24 @@ class DemoSchoolSeeder extends Seeder
                             'school_id' => $school->id,
                             'student_id' => $enrolment->student_id,
                             'class_id' => $class->id,
-                            'raw_score' => $raw,
+                            'raw_score' => $absent ? null : $raw,
                             // Snapshotted at entry time, never looked up later.
                             'max_marks' => $max,
-                            'scaled_score' => round($raw / $max * 100, 2),
+                            'scaled_score' => $absent ? null : round($raw / $max * 100, 2),
                             'is_derived' => false,
-                            'is_absent' => false,
+                            'is_absent' => $absent,
                             'entered_at' => now(),
                         ]
                     );
                 }
-
-                $scaled = $this->aggregate($levelSubject->aggregation_rule, $rawScores, (float) $levelSubject->scale_max);
-                $band = $scale->bandFor($scaled);
-
-                ExamSubjectScore::updateOrCreate(
-                    [
-                        'exam_id' => $exam->id,
-                        'enrolment_id' => $enrolment->id,
-                        'level_subject_id' => $levelSubject->id,
-                        'subject_paper_id' => null,
-                    ],
-                    [
-                        'school_id' => $school->id,
-                        'student_id' => $enrolment->student_id,
-                        'class_id' => $class->id,
-                        'raw_score' => $scaled,
-                        'max_marks' => $levelSubject->scale_max,
-                        'scaled_score' => $scaled,
-                        'is_derived' => true,
-                        'is_absent' => false,
-                        'grade_band_id' => $band?->id,
-                        'entered_at' => now(),
-                    ]
-                );
-
-                $total += $scaled;
-                $counted++;
             }
-
-            $totals[$enrolment->id] = ['total' => $total, 'counted' => $counted, 'enrolment' => $enrolment];
         }
 
-        $this->writeResults($school, $exam, $class, $level, $totals, $scale, count($levelSubjects));
-    }
-
-    /**
-     * Fixture-only aggregation, mirroring what AggregationService will do.
-     *
-     * @param  array<int, array{paper: SubjectPaper, raw: float, max: float}>  $scores
-     */
-    private function aggregate(AggregationRule $rule, array $scores, float $scaleMax): float
-    {
-        $rawSum = array_sum(array_column($scores, 'raw'));
-        $maxSum = array_sum(array_column($scores, 'max'));
-
-        return round(match ($rule) {
-            AggregationRule::SINGLE => $scores[0]['raw'] / $scores[0]['max'] * $scaleMax,
-            AggregationRule::PERCENTAGE_OF_COMBINED_MAX => $rawSum / $maxSum * $scaleMax,
-            AggregationRule::SUM => $rawSum,
-            AggregationRule::AVERAGE => $rawSum / count($scores),
-            AggregationRule::WEIGHTED_SUM => array_sum(array_map(
-                fn (array $s) => $s['raw'] * (float) $s['paper']->weight,
-                $scores
-            )),
-        }, 2);
-    }
-
-    /**
-     * Competition ranking (1, 2, 2, 4) — the policy this exam declares. Legacy
-     * did $rank = $index + 1 with no tie handling at all.
-     */
-    private function writeResults(
-        School $school,
-        Exam $exam,
-        SchoolClass $class,
-        Level $level,
-        array $totals,
-        GradingScale $scale,
-        int $subjectCount,
-    ): void {
-        uasort($totals, fn (array $a, array $b) => $b['total'] <=> $a['total']);
-
-        $cohort = count($totals);
-        $position = 0;
-        $seen = 0;
-        $previousTotal = null;
-
-        foreach ($totals as $row) {
-            $seen++;
-
-            if ($previousTotal === null || abs($row['total'] - $previousTotal) > 0.001) {
-                $position = $seen;
-                $previousTotal = $row['total'];
-            }
-
-            $mean = round($row['total'] / max($row['counted'], 1), 2);
-            $band = $scale->bandFor($mean);
-
-            ExamStudentResult::updateOrCreate(
-                ['exam_id' => $exam->id, 'enrolment_id' => $row['enrolment']->id],
-                [
-                    'school_id' => $school->id,
-                    'student_id' => $row['enrolment']->student_id,
-                    'class_id' => $class->id,
-                    'level_id' => $level->id,
-                    'stream_id' => $class->stream_id,
-                    'subjects_expected' => $subjectCount,
-                    'subjects_counted' => $row['counted'],
-                    'total_marks' => round($row['total'], 2),
-                    'mean_marks' => $mean,
-                    'mean_grade_band_id' => $band?->id,
-                    'grade_position' => $position,
-                    'stream_position' => $position,
-                    'grade_cohort_size' => $cohort,
-                    'stream_cohort_size' => $cohort,
-                    'is_complete' => $row['counted'] === $subjectCount,
-                    'computed_at' => now(),
-                ]
-            );
-        }
+        // Everything else — subject scores, bands, totals, positions, statistics —
+        // comes from the real pipeline, exactly as it would after marking. The
+        // exam has to be in MARKING to compute, then is locked as a school would.
+        $exam->update(['status' => ExamStatus::MARKING]);
+        app(ExamComputationService::class)->compute($exam);
+        $exam->update(['status' => ExamStatus::LOCKED]);
     }
 }

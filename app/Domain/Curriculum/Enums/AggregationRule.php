@@ -23,8 +23,15 @@ namespace App\Domain\Curriculum\Enums;
  *                               Upper-classes-combined SubjectController.php:420-436
  *                               (Gramma+Compo -> English, Lugha+Insha -> Kiswahili)
  *
- *   AVERAGE / WEIGHTED_SUM      not used by any legacy deployment; available so
- *                               a school can configure them without code changes.
+ *   AVERAGE                     mean of the papers' percentages * scale_max.
+ *   WEIGHTED_SUM                sum(pct * weight) / sum(weight) * scale_max — a
+ *                               weight-averaged percentage, so papers of different
+ *                               maxes can be split 70/30. (A literal weighted sum
+ *                               of raw marks is already SUM.)
+ *
+ *                               Neither is used by any legacy deployment; both
+ *                               exist so a school can configure them without code
+ *                               changes. AggregationService holds the arithmetic.
  */
 enum AggregationRule: string
 {

@@ -29,7 +29,11 @@ recoverable from the code alone.
    falls between them.
 7. **MySQL identifiers max out at 64 chars.** Name composite indexes explicitly
    (`esr_exam_class_total_idx` style) — SQLite never complains.
-8. **Tenant-owned factories pass `school_id` explicitly.** Do not rely on
+8. **Derived data is output, never input.** Derived subject rows, result
+   aggregates, positions and `exam_statistics` are rebuilt by
+   `ExamComputationService` from entered paper rows. Never write them from a
+   read path or by hand — change the entered marks and recompute.
+9. **Tenant-owned factories pass `school_id` explicitly.** Do not rely on
    `BelongsToSchool` stamping it from the ambient tenant.
 
 ## Conventions

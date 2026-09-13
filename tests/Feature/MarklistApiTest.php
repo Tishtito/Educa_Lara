@@ -94,8 +94,11 @@ class MarklistApiTest extends TestCase
     public function test_it_reports_a_class_mean_per_subject(): void
     {
         foreach ($this->marklist()->json('data.subjects') as $subject) {
-            $this->assertSame(8, $subject['students_counted']);
-            $this->assertIsFloat($subject['class_mean']);
+            // One demo pupil was absent from Social Studies, and absentees do not
+            // count towards a subject's mean.
+            $this->assertSame($subject['code'] === 'SST' ? 7 : 8, $subject['students_counted']);
+            // assertIsNumeric, not assertIsFloat: JSON encodes 58.0 as 58.
+            $this->assertIsNumeric($subject['class_mean']);
             $this->assertGreaterThan(0, $subject['class_mean']);
         }
     }
@@ -148,6 +151,18 @@ class MarklistApiTest extends TestCase
         $this->forgetTenant();
 
         $this->marklist($examiner)->assertStatus(403);
+    }
+
+    public function test_an_absent_score_is_shown_as_absent_with_no_band(): void
+    {
+        $cells = collect($this->marklist()->json('data.students'))
+            ->flatMap(fn (array $s) => $s['scores'])
+            ->where('is_absent', true)
+            ->values();
+
+        $this->assertCount(1, $cells);
+        $this->assertNull($cells[0]['score']);
+        $this->assertNull($cells[0]['band']);
     }
 
     public function test_class_id_is_required(): void
