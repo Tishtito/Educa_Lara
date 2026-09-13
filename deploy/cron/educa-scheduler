@@ -1,0 +1,10 @@
+# Educa scheduler — install to /etc/cron.d/educa-scheduler (root:root, mode 0644).
+# Replace /var/www/educa-api and /usr/bin/php as in deploy/supervisor/educa-worker.conf.
+#
+# Runs the Laravel scheduler every minute (routes/console.php): the stale-results
+# safety net, queue health alerts, and failed-job pruning. If this line is
+# missing, GET /up turns unhealthy within 10 minutes (scheduler heartbeat).
+#
+# /etc/cron.d files take a user column, and must end with a newline.
+SHELL=/bin/sh
+* * * * * www-data cd /var/www/educa-api && /usr/bin/php artisan schedule:run >> /dev/null 2>&1

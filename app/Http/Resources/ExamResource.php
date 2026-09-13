@@ -27,6 +27,8 @@ class ExamResource extends JsonResource
             // imported exams keep legacy's tie-free ranking on purpose.
             'is_legacy_import' => $this->isLegacyImport(),
             'accepts_score_entry' => $this->acceptsScoreEntry(),
+            'results_up_to_date' => ! $this->resultsAreStale(),
+            'results_computed_at' => $this->results_computed_at?->toIso8601String(),
             'published_at' => $this->published_at,
             'academic_year' => $this->whenLoaded('academicYear', fn () => [
                 'id' => $this->academicYear->id,

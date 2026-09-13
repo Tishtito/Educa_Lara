@@ -242,6 +242,89 @@ Rules, and the legacy behaviour each settles:
 `DemoSchoolSeeder` enters only paper marks and then runs the real pipeline, so
 the rows the marklist reads come from the same code a school uses.
 
+### Exam lifecycle
+
+`draft <-> open -> marking <-> locked -> published -> archived`, moved only by
+`POST /api/exams/{exam}/transition` (school admin) through `ExamLifecycleService`.
+Legacy `ExamsController::update` set any status on any exam.
+
+- **→ open**: the exam must cover at least one class. If no subjects were chosen
+  it takes every active subject at its classes' levels, each paper at its
+  curriculum default marks-out-of. A hand-made selection is left alone.
+- **→ locked**: results are computed synchronously.
+- **→ published**: stamps `published_at`. Nothing leaves `published` except
+  `archived`; correcting published results is a data fix, not a button.
+
+Only `marking` accepts marks. Marks-out-of may change in `draft`, `open` and
+`marking`, and is frozen from `locked` on.
+
+### Mark entry
+
+A **mark sheet** is one exam × one class × one subject. `MarkingController`
+over `MarksheetService` (the exam's rules) and `MarkingAccess` (who may touch
+which sheet):
+
+| Endpoint | Who |
+|---|---|
+| `GET /api/exams/{exam}/marking` — sheets I can open, with progress | admin, examiner, class teacher |
+| `GET /api/exams/{exam}/marksheet?class_id=&level_subject_id=` | as above, per sheet |
+| `PUT /api/exams/{exam}/marksheet` — bulk save | admin, assigned examiner |
+| `PUT /api/exams/{exam}/max-marks` | admin; an examiner only for one class they mark |
+| `GET`/`PUT /api/me/selected-exam` | anyone signed in |
+
+**Access is the full triple — class, subject, and the exam's academic year.**
+Legacy JSS checked `(examiner, subject)` and ignored the class, so an examiner
+assigned English in one Grade 7 class could mark English in all of them; its
+Paper1/Paper2 branch skipped the check entirely. A term-scoped assignment only
+applies to that term's exams. Class teachers of the class can view, not enter.
+
+Saving is **all or nothing**. Each row is `{enrolment_id, subject_paper_id,
+raw_score, is_absent}`:
+
+- The max comes only from the exam's configuration (class override → exam-wide
+  → curriculum default) and is **snapshotted** onto the score. JSS used a
+  marks-out-of sent by the client.
+- Marks are range-checked 0..max; an absent row may not carry a mark, and needs
+  a max to exist too (a null snapshot would break the whole exam's computation).
+- The enrolment must be in this class for the exam's year. Legacy looked the
+  enrolment up by `student_id` alone.
+- `raw_score: null` with `is_absent: false` **clears** the mark, returning the
+  subject to pending.
+- Rows whose value has not changed are not rewritten, so re-saving a whole
+  sheet keeps who entered each mark (`entered_by`, `entered_at`).
+
+**Changing marks-out-of under existing marks is refused (409)** unless the
+request sets `apply_to_existing`, which re-snapshots those marks and rescales
+them; no existing mark may exceed the new max. An exam-wide change leaves
+classes that have their own override alone. Legacy let any examiner change it
+at any time, silently changing what entered marks meant.
+
+### Recomputation after saves
+
+A save that changes anything stamps `exams.marks_changed_at` and dispatches
+`App\Jobs\ComputeExamResults` on the dedicated `results` queue, after the
+transaction commits. The job is `ShouldBeUniqueUntilProcessing` on the exam id,
+so a burst of saves collapses into one run while a save made during a run still
+queues another. Its lock expires after 5 minutes (`uniqueFor`): a job lost before
+a worker starts it would otherwise hold the lock for a day and silently swallow
+every later dispatch for that exam.
+
+Results carry their own freshness. `ExamComputationService` stamps
+`exams.results_computed_at` with the moment it **starts** reading marks, both at
+microsecond precision, so a mark saved mid-run still reads as stale. The
+marking, marksheet, marklist and exam responses expose `results_up_to_date`.
+
+`exams:recompute-stale` (every 5 minutes) re-queues any computable exam still
+stale after a 2-minute grace, releasing a lost job's lock first. Lost jobs,
+failed jobs and downtime heal on their own.
+
+The job holds the exam **id**, not the model: `SerializesModels` would re-fetch
+the exam through `TenantScope` on a worker with no tenant, fail closed, and
+throw.
+
+**Operating it** — workers, scheduler, alerting, deploys — is in
+[deployment-vps.md](./deployment-vps.md).
+
 ---
 
 ## 5. Grading
@@ -326,11 +409,16 @@ happened to have resolved.
 
 ## 8. Conversion status
 
-Verified 2026-09-13: `migrate:fresh --seed` clean on MySQL, 129/129 tests
-passing, the new services mutation-checked (eight injected bugs, all caught),
+Verified 2026-09-13: `migrate:fresh --seed` clean on MySQL, 209/209 tests
+passing, the computation, marking and queue-operations code mutation-checked (31 injected bugs, all caught),
 and the slice exercised by hand against `php artisan serve`: login, tenant
 isolation between two seeded schools, marklist, role refusals, superadmin
-`X-School`, token revocation, and computing exams through the API and console.
+`X-School`, token revocation, computing exams through the API and console, and the
+full marking workflow (create → open → mark → queue worker recomputes → lock →
+publish → edits refused) with a real database queue worker, and the checked-in
+Supervisor config run under a real supervisord through an outage: stale flags,
+`/up` failing, one alert mail, recovery mail, a lost job healed, graceful
+`queue:restart`.
 
 | Area | State |
 |---|---|
@@ -341,15 +429,16 @@ isolation between two seeded schools, marklist, role refusals, superadmin
 | Reference + demo seeders, factories | done |
 | Exams API, marklist read endpoint | done, tested |
 | Computation pipeline (aggregation, grading, ranking, statistics) + compute endpoint and command | done, tested |
-| Mark entry endpoints (examiner) | **not started** — next milestone |
+| Exam lifecycle, mark entry, marks-out-of, selected exam, queued recompute | done, tested |
+| Queue operations: dedicated workers, stale-results self-healing, heartbeats, `/up`, ops email, Supervisor + cron config | done, tested, run under real Supervisor |
 | Reports / report cards / PDF | not started — legacy `lower-classes` reports are still changing on `Dev` and must be tracked |
 | Legacy ETL + `legacy:verify` | not started |
 | Analytics (MSS, stream lists) | not started |
 | SMS | not started — legacy only ever appended to `logs/sms.log`; no gateway existed |
 | Fees, attendance, timetable, parent/student portals | absent from legacy; new build, not conversion |
 
-Marks still reach the database only through seeders and factories; the
-examiner-facing mark entry API is the next piece.
+Remaining conversion work, in the order it unblocks the most: reports and
+report cards (PDF), then the legacy ETL, then analytics.
 
 ---
 
@@ -360,7 +449,7 @@ composer install
 cp .env.example .env && php artisan key:generate
 php artisan migrate:fresh --seed     # MySQL: educa_lara
 php artisan test                     # MySQL: educa_lara_test
-php artisan serve
+composer run dev                     # serve + queue:listen on every queue + logs + vite
 ```
 
 Seeded logins (password `password` for all): `superadmin` (platform, needs an

@@ -1,5 +1,6 @@
 <?php
 
+use App\Domain\Examination\Exceptions\ExaminationRuleViolation;
 use App\Http\Middleware\EnsureUserHasRole;
 use App\Http\Middleware\ResolveTenant;
 use Illuminate\Foundation\Application;
@@ -42,4 +43,12 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*'),
         );
+
+        // Exam state-rule violations (locked exam, bad transition, frozen max
+        // marks) carry their own HTTP status and a human-readable reason.
+        $exceptions->render(function (ExaminationRuleViolation $e, Request $request) {
+            if ($request->is('api/*')) {
+                return response()->json(['success' => false, 'message' => $e->getMessage()], $e->status());
+            }
+        });
     })->create();

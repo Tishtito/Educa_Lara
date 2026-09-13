@@ -38,6 +38,8 @@ class Exam extends Model
             'starts_on' => 'date',
             'ends_on' => 'date',
             'published_at' => 'datetime',
+            'marks_changed_at' => 'datetime',
+            'results_computed_at' => 'datetime',
         ];
     }
 
@@ -93,6 +95,20 @@ class Exam extends Model
     public function acceptsScoreEntry(): bool
     {
         return $this->status === ExamStatus::MARKING;
+    }
+
+    /**
+     * Whether results lag behind the marks: a mark has changed since the last
+     * computation started, or marks exist but results were never computed.
+     */
+    public function resultsAreStale(): bool
+    {
+        if ($this->marks_changed_at === null) {
+            return false;
+        }
+
+        return $this->results_computed_at === null
+            || $this->marks_changed_at->greaterThan($this->results_computed_at);
     }
 
     /** True for exams carried in from the legacy system by the ETL. */

@@ -33,7 +33,19 @@ recoverable from the code alone.
    aggregates, positions and `exam_statistics` are rebuilt by
    `ExamComputationService` from entered paper rows. Never write them from a
    read path or by hand — change the entered marks and recompute.
-9. **Tenant-owned factories pass `school_id` explicitly.** Do not rely on
+9. **Every job declares its queue.** `results` for result computation;
+   anything that can run for minutes goes on the `database-long` connection
+   (report PDFs → `reports`, outbound messages → `notifications`). A new job's
+   `$timeout` must stay below its connection's `retry_after`. Unique jobs need
+   a `uniqueFor()` — the default lets a lost job block its key for a day.
+   Operations: `docs/deployment-vps.md`.
+10. **Queued jobs hold ids, not tenant-owned models.** A worker has no tenant, so
+   `SerializesModels` re-fetching through `TenantScope` fails closed. Load
+   inside `handle()` with `TenantManager::withoutScope()` and run the work as
+   the record's own school.
+11. **Throw `ExaminationRuleViolation` subclasses for exam state rules** (409 by
+   default). `bootstrap/app.php` renders them; controllers do not catch them.
+12. **Tenant-owned factories pass `school_id` explicitly.** Do not rely on
    `BelongsToSchool` stamping it from the ambient tenant.
 
 ## Conventions

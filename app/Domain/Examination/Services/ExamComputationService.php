@@ -72,6 +72,13 @@ class ExamComputationService
         $report = new ComputationReport;
         $now = now();
 
+        // Stamped with the time this run starts reading marks, and written in the
+        // same transaction as the results. A mark saved after this instant is
+        // newer than results_computed_at, so the exam correctly reads as stale
+        // until the job that save dispatched has run.
+        // Query builder, not the model, to keep microseconds (see the migration).
+        Exam::query()->whereKey($exam->id)->update(['results_computed_at' => $now->format('Y-m-d H:i:s.u')]);
+
         $entered = ExamSubjectScore::query()
             ->where('exam_id', $exam->id)
             ->entered()
@@ -134,6 +141,17 @@ class ExamComputationService
                     $row = $byPaper->get($levelSubject->id.':'.$paper->id);
 
                     if ($row === null) {
+                        $papers = null;
+
+                        break;
+                    }
+
+                    // A mark with no usable max (legacy data, or written around
+                    // the marksheet) cannot be aggregated. Treat the subject as
+                    // pending and say so, rather than letting one bad row abort
+                    // the whole exam.
+                    if ($row->max_marks === null || (float) $row->max_marks <= 0) {
+                        $report->warnings[] = "Score {$row->id} has no marks-out-of; {$levelSubject->subject?->name} left pending for enrolment {$enrolmentId}.";
                         $papers = null;
 
                         break;

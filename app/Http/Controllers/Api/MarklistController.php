@@ -99,6 +99,8 @@ class MarklistController extends Controller
                     'status' => $exam->status?->value,
                     'tie_policy' => $exam->tie_policy?->value,
                     'is_legacy_import' => $exam->isLegacyImport(),
+                    'results_up_to_date' => ! $exam->resultsAreStale(),
+                    'results_computed_at' => $exam->results_computed_at?->toIso8601String(),
                 ],
                 'class' => [
                     'id' => $class->id,

@@ -5,9 +5,8 @@ declare(strict_types=1);
 namespace App\Domain\Examination\Exceptions;
 
 use App\Domain\Examination\Models\Exam;
-use DomainException;
 
-class ExamNotComputable extends DomainException
+class ExamNotComputable extends ExaminationRuleViolation
 {
     public static function forStatus(Exam $exam): self
     {

@@ -35,12 +35,28 @@ return [
             'driver' => 'sync',
         ],
 
+        // retry_after MUST exceed the longest $timeout of any job on the
+        // connection. The database driver hands a reserved job to another worker
+        // once retry_after passes, even while the first is still running it, so a
+        // too-short value runs jobs twice. It is per connection, which is why
+        // long jobs live on database-long below. See docs/deployment-vps.md.
         'database' => [
             'driver' => 'database',
             'connection' => env('DB_QUEUE_CONNECTION'),
             'table' => env('DB_QUEUE_TABLE', 'jobs'),
             'queue' => env('DB_QUEUE', 'default'),
-            'retry_after' => (int) env('DB_QUEUE_RETRY_AFTER', 90),
+            'retry_after' => (int) env('DB_QUEUE_RETRY_AFTER', 150),   // jobs time out at 120 s
+            'after_commit' => false,
+        ],
+
+        // Same jobs table, for work that can legitimately run for minutes:
+        // report-card PDFs and outbound notifications.
+        'database-long' => [
+            'driver' => 'database',
+            'connection' => env('DB_QUEUE_CONNECTION'),
+            'table' => env('DB_QUEUE_TABLE', 'jobs'),
+            'queue' => 'reports',
+            'retry_after' => (int) env('DB_LONG_QUEUE_RETRY_AFTER', 660),   // jobs time out at 600 s
             'after_commit' => false,
         ],
 
