@@ -44,6 +44,10 @@ worker once `retry_after` passes, even if the first worker is still running it.
 
 Both read the same `jobs` table, by queue name.
 
+Long jobs (report-card PDFs) take their connection from
+`QUEUE_LONG_CONNECTION` (default `database-long`) rather than naming it, so
+the test suite can run them synchronously. Leave it unset in production.
+
 **Why `results` has its own workers.** Examiners are waiting on it. It must
 never sit behind a school's batch of 800 report-card PDFs.
 
@@ -55,6 +59,7 @@ never sit behind a school's batch of 800 report-card PDFs.
 | `ops:check-queue` | 5 min | Records the scheduler heartbeat; emails ops on incident and on recovery |
 | `queue:prune-failed --hours=720` | daily | Keeps a month of failed jobs |
 | `queue:prune-batches` | daily | |
+| `reports:prune-batches` | daily | Deletes class report-card PDFs older than 7 days (issued cards live on as snapshots) |
 
 ---
 
@@ -75,6 +80,11 @@ never sit behind a school's batch of 800 report-card PDFs.
    `CACHE_STORE` must be a store every process shares (`database` or `redis`).
    With `array` or a per-process store, heartbeats, the restart signal and job
    uniqueness locks silently stop working across processes.
+
+   **Writable by `www-data`:** `storage/` as usual, which now includes
+   `storage/framework/dompdf` (PDF font cache — dompdf's default is inside
+   `vendor/`, which must not be writable) and `storage/app/private/report-cards`
+   (class PDFs, pruned after 7 days by `reports:prune-batches`).
 
 2. **Supervisor.** Copy `deploy/supervisor/educa-worker.conf` to
    `/etc/supervisor/conf.d/`, then replace in it:

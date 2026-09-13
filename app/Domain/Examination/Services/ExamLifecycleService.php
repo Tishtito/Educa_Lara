@@ -11,6 +11,8 @@ use App\Domain\Examination\Exceptions\InvalidExamTransition;
 use App\Domain\Examination\Models\Exam;
 use App\Domain\Examination\Models\ExamSubject;
 use App\Domain\Examination\Models\ExamSubjectPaper;
+use App\Domain\People\Models\User;
+use App\Domain\Reporting\Services\ReportCardService;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -24,15 +26,20 @@ use Illuminate\Support\Facades\DB;
  *                 covered every subject column in the table, for every class.
  *   -> LOCKED     results are computed synchronously, so a locked exam is never
  *                 left holding results from before its last marks.
- *   -> PUBLISHED  stamps published_at.
+ *   -> PUBLISHED  stamps published_at and freezes every student's report cards
+ *                 into snapshots, in the same transaction: an exam is never
+ *                 published without its issued cards on record.
  */
 class ExamLifecycleService
 {
-    public function __construct(private readonly ExamComputationService $computation) {}
+    public function __construct(
+        private readonly ExamComputationService $computation,
+        private readonly ReportCardService $reportCards,
+    ) {}
 
-    public function transition(Exam $exam, ExamStatus $to): Exam
+    public function transition(Exam $exam, ExamStatus $to, ?User $by = null): Exam
     {
-        return DB::transaction(function () use ($exam, $to) {
+        return DB::transaction(function () use ($exam, $to, $by) {
             $exam = Exam::query()->lockForUpdate()->findOrFail($exam->getKey());
 
             if (! $exam->status->canTransitionTo($to)) {
@@ -53,6 +60,10 @@ class ExamLifecycleService
 
             if ($to === ExamStatus::LOCKED) {
                 $this->computation->compute($exam);
+            }
+
+            if ($to === ExamStatus::PUBLISHED) {
+                $this->reportCards->snapshot($exam, $by);
             }
 
             return $exam->fresh(['academicYear', 'term', 'level']);

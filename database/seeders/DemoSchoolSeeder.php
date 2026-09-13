@@ -30,8 +30,10 @@ use App\Domain\People\Models\Role;
 use App\Domain\People\Models\Student;
 use App\Domain\People\Models\StudentEnrolment;
 use App\Domain\People\Models\User;
+use App\Domain\Reporting\Models\ReportCardEntry;
 use App\Domain\Tenancy\Models\School;
 use App\Domain\Tenancy\Models\SchoolDomain;
+use App\Domain\Tenancy\Models\SchoolSetting;
 use App\Domain\Tenancy\TenantManager;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
@@ -67,6 +69,9 @@ class DemoSchoolSeeder extends Seeder
                 'short_name' => explode(' ', $name)[0],
                 'motto' => 'Elimu ni Ufunguo',
                 'county' => 'Nyeri',
+                'address' => 'P.O. Box 194-10100, Nyeri',
+                'phone' => '+254 712 000 111',
+                'email' => "office@{$slug}.educa.test",
                 'status' => 'active',
                 'legacy_source_systems' => ['lower_classes', 'upper_classes'],
             ]
@@ -94,12 +99,30 @@ class DemoSchoolSeeder extends Seeder
             ['starts_on' => now()->startOfYear(), 'ends_on' => now()->endOfYear(), 'is_current' => true]
         );
 
-        foreach ([1, 2, 3] as $number) {
+        $calendar = [
+            1 => ['01-06', '04-03', 3500],
+            2 => ['04-27', '08-07', 3500],
+            3 => ['08-31', '10-30', 3000],
+        ];
+
+        foreach ($calendar as $number => [$opens, $closes, $feeding]) {
             Term::updateOrCreate(
                 ['academic_year_id' => $year->id, 'term_number' => $number],
-                ['school_id' => $school->id, 'name' => "Term {$number}", 'is_current' => $number === 1]
+                [
+                    'school_id' => $school->id,
+                    'name' => "Term {$number}",
+                    'is_current' => $number === 1,
+                    'starts_on' => $year->name.'-'.$opens,
+                    'ends_on' => $year->name.'-'.$closes,
+                    'feeding_fee' => $feeding,
+                ]
             );
         }
+
+        SchoolSetting::updateOrCreate(
+            ['school_id' => $school->id, 'key' => 'report_card.head_teacher_name'],
+            ['value' => 'Mary Wanjiku']
+        );
 
         $term = $year->terms()->where('term_number', 1)->first();
 
@@ -121,7 +144,12 @@ class DemoSchoolSeeder extends Seeder
         $levelSubjects = $this->seedCurriculum($school, $level, $year, $scale);
         $enrolments = $this->seedStudents($school, $year, $class);
         $this->seedStaff($school, $class, $year, $levelSubjects);
-        $this->seedExam($school, $year, $term, $level, $class, $levelSubjects, $enrolments, $scale);
+        $this->seedExam($school, $year, $term, $level, $class, $levelSubjects, $enrolments, $scale,
+            'Term 1 Mid-Term', ExamType::MIDTERM, 1, 0);
+        $endTerm = $this->seedExam($school, $year, $term, $level, $class, $levelSubjects, $enrolments, $scale,
+            'Term 1 End-Term', ExamType::ENDTERM, 2, 11);
+
+        $this->seedReportEntries($school, $endTerm, $enrolments);
     }
 
     /**
@@ -296,16 +324,20 @@ class DemoSchoolSeeder extends Seeder
         array $levelSubjects,
         array $enrolments,
         GradingScale $scale,
-    ): void {
+        string $name,
+        ExamType $type,
+        int $sequence,
+        int $markShift,
+    ): Exam {
         $exam = Exam::updateOrCreate(
-            ['school_id' => $school->id, 'academic_year_id' => $year->id, 'name' => 'Term 1 Mid-Term'],
+            ['school_id' => $school->id, 'academic_year_id' => $year->id, 'name' => $name],
             [
                 'term_id' => $term->id,
                 'level_id' => $level->id,
-                'exam_type' => ExamType::MIDTERM,
-                'sequence' => 1,
-                'starts_on' => now()->subWeeks(3),
-                'ends_on' => now()->subWeeks(3)->addDays(4),
+                'exam_type' => $type,
+                'sequence' => $sequence,
+                'starts_on' => now()->subWeeks(5 - $sequence * 2),
+                'ends_on' => now()->subWeeks(5 - $sequence * 2)->addDays(4),
                 'status' => ExamStatus::LOCKED,
                 'mean_policy' => MeanPolicy::COMPLETE_STUDENTS_ONLY,
                 'tie_policy' => TiePolicy::COMPETITION,
@@ -339,7 +371,7 @@ class DemoSchoolSeeder extends Seeder
             foreach ($levelSubjects as $code => $levelSubject) {
                 foreach ($levelSubject->papers as $paper) {
                     $max = (float) $paper->default_max_marks;
-                    $fraction = (($index * 7 + $levelSubject->id * 13 + $paper->sequence * 3) % 61 + 35) / 100;
+                    $fraction = (($index * 7 + $levelSubject->id * 13 + $paper->sequence * 3 + $markShift) % 61 + 35) / 100;
                     $raw = round($max * $fraction, 2);
 
                     // One pupil missed the Social Studies paper, so the absent
@@ -377,5 +409,35 @@ class DemoSchoolSeeder extends Seeder
         $exam->update(['status' => ExamStatus::MARKING]);
         app(ExamComputationService::class)->compute($exam);
         $exam->update(['status' => ExamStatus::LOCKED]);
+
+        return $exam;
+    }
+
+    /**
+     * Remarks and fee balances typed onto the End-Term cards. Left blank for the
+     * last pupil, so the demo also shows a card with unfilled lines.
+     *
+     * @param  array<int, StudentEnrolment>  $enrolments
+     */
+    private function seedReportEntries(School $school, Exam $exam, array $enrolments): void
+    {
+        $remarks = [
+            'A diligent learner who participates well in class. Keep reading every day.',
+            'Good progress this term, especially in Mathematics. Aim higher in Social Studies.',
+            'Shows great curiosity in Science. Needs to complete homework on time.',
+            'A polite and focused pupil. Keep up the consistent effort.',
+        ];
+
+        foreach (array_slice($enrolments, 0, count($enrolments) - 1) as $i => $enrolment) {
+            ReportCardEntry::updateOrCreate(
+                ['exam_id' => $exam->id, 'enrolment_id' => $enrolment->id],
+                [
+                    'school_id' => $school->id,
+                    'student_id' => $enrolment->student_id,
+                    'class_teacher_remarks' => $remarks[$i % count($remarks)],
+                    'fee_balance' => [0, 2500, 1200.5, 0][$i % 4],
+                ]
+            );
+        }
     }
 }

@@ -10,7 +10,12 @@ use App\Http\Controllers\Api\ExamLifecycleController;
 use App\Http\Controllers\Api\MarkingController;
 use App\Http\Controllers\Api\MarklistController;
 use App\Http\Controllers\Api\Platform\QueueHealthController;
+use App\Http\Controllers\Api\ReportCardBatchController;
+use App\Http\Controllers\Api\ReportCardController;
+use App\Http\Controllers\Api\ReportCardSettingsController;
+use App\Http\Controllers\Api\ReportEntryController;
 use App\Http\Controllers\Api\SelectedExamController;
+use App\Http\Controllers\Api\TermController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -60,6 +65,28 @@ Route::middleware(['auth:sanctum', 'tenant'])->group(function (): void {
     Route::middleware('role:'.Role::SCHOOL_ADMIN.','.Role::EXAMINER)->group(function (): void {
         Route::put('exams/{exam}/marksheet', [MarkingController::class, 'update']);
         Route::put('exams/{exam}/max-marks', [MarkingController::class, 'setMaxMarks']);
+    });
+
+    // Report cards. Role gates reach; ReportAccess then allows an admin, or the
+    // class teacher of the class in the exam's year. Examiners do not issue cards.
+    Route::middleware('role:'.Role::SCHOOL_ADMIN.','.Role::CLASS_TEACHER)->group(function (): void {
+        Route::get('exams/{exam}/report-cards', [ReportCardController::class, 'index']);
+        Route::get('exams/{exam}/report-cards/{enrolment}', [ReportCardController::class, 'show']);
+        Route::get('exams/{exam}/report-cards/{enrolment}/pdf', [ReportCardController::class, 'pdf']);
+
+        Route::post('exams/{exam}/report-card-batches', [ReportCardBatchController::class, 'store']);
+        Route::get('report-card-batches/{batch}', [ReportCardBatchController::class, 'show']);
+        Route::get('report-card-batches/{batch}/download', [ReportCardBatchController::class, 'download']);
+
+        Route::get('exams/{exam}/report-entries', [ReportEntryController::class, 'index']);
+        Route::put('exams/{exam}/report-entries', [ReportEntryController::class, 'update']);
+    });
+
+    Route::middleware('role:'.Role::SCHOOL_ADMIN)->group(function (): void {
+        Route::get('terms', [TermController::class, 'index']);
+        Route::patch('terms/{term}', [TermController::class, 'update']);
+        Route::get('school/report-card-settings', [ReportCardSettingsController::class, 'show']);
+        Route::put('school/report-card-settings', [ReportCardSettingsController::class, 'update']);
     });
 
     Route::get('me/selected-exam', [SelectedExamController::class, 'show']);

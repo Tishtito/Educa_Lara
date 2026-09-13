@@ -21,7 +21,7 @@ class ExamLifecycleController extends Controller
 {
     public function __invoke(TransitionExamRequest $request, Exam $exam, ExamLifecycleService $lifecycle): JsonResponse
     {
-        $exam = $lifecycle->transition($exam, $request->status());
+        $exam = $lifecycle->transition($exam, $request->status(), $request->user());
 
         return response()->json([
             'success' => true,

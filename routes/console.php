@@ -28,3 +28,6 @@ Schedule::command('ops:check-queue')->everyFiveMinutes()->withoutOverlapping();
 // Keep a month of failed jobs for diagnosis; beyond that they are noise.
 Schedule::command('queue:prune-failed', ['--hours' => 720])->daily();
 Schedule::command('queue:prune-batches')->daily();
+
+// Class PDFs are regenerated on request; issued cards live on as snapshots.
+Schedule::command('reports:prune-batches')->daily();

@@ -26,6 +26,12 @@ return [
         // The scheduler runs ops:check-queue every 5 min.
         'scheduler_max_age_seconds' => (int) env('SCHEDULER_HEARTBEAT_MAX_AGE', 600),
 
+        // Connection for jobs that can run for minutes (report PDFs). Jobs read
+        // this rather than naming 'database-long' themselves, so the test suite
+        // can point it at the sync driver (phpunit.xml); a hardcoded connection
+        // would bypass QUEUE_CONNECTION=sync and never run in tests.
+        'long_connection' => env('QUEUE_LONG_CONNECTION', 'database-long'),
+
         // One entry per Supervisor program in deploy/supervisor/educa-worker.conf.
         // 'queues' must match that program's --queue value exactly: it is the key
         // the worker's heartbeat is recorded under.

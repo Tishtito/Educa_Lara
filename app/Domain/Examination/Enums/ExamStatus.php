@@ -57,6 +57,25 @@ enum ExamStatus: string
     }
 
     /**
+     * Whether results are final enough to print on a report card: marking has
+     * closed. Legacy printed cards from whatever exam_results held at the time,
+     * including half-marked exams.
+     */
+    public function hasFinalResults(): bool
+    {
+        return in_array($this, [self::LOCKED, self::PUBLISHED, self::ARCHIVED], true);
+    }
+
+    /**
+     * Whether remarks and fee balances may still be typed. Not once the cards
+     * have been issued: publishing freezes them into snapshots.
+     */
+    public function allowsReportEntries(): bool
+    {
+        return ! in_array($this, [self::PUBLISHED, self::ARCHIVED], true);
+    }
+
+    /**
      * The states this one may move to.
      *
      * Legacy ExamsController::update accepted any status for any exam, so an exam

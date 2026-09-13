@@ -39,13 +39,21 @@ recoverable from the code alone.
    `$timeout` must stay below its connection's `retry_after`. Unique jobs need
    a `uniqueFor()` — the default lets a lost job block its key for a day.
    Operations: `docs/deployment-vps.md`.
-10. **Queued jobs hold ids, not tenant-owned models.** A worker has no tenant, so
+10. **Read report cards only through `ReportCardService`.** It serves the
+   snapshot frozen at publication for published exams. Building a card straight
+   from `ReportCardBuilder` for a published exam would show parents something
+   other than what was issued.
+11. **`SchoolSetting` is not tenant-scoped.** Always filter by `school_id`.
+12. **Long-running jobs take their connection from
+   `config('educa.queue.long_connection')`**, never a hardcoded
+   `'database-long'` — a named connection bypasses the sync queue in tests.
+13. **Queued jobs hold ids, not tenant-owned models.** A worker has no tenant, so
    `SerializesModels` re-fetching through `TenantScope` fails closed. Load
    inside `handle()` with `TenantManager::withoutScope()` and run the work as
    the record's own school.
-11. **Throw `ExaminationRuleViolation` subclasses for exam state rules** (409 by
+14. **Throw `ExaminationRuleViolation` subclasses for exam state rules** (409 by
    default). `bootstrap/app.php` renders them; controllers do not catch them.
-12. **Tenant-owned factories pass `school_id` explicitly.** Do not rely on
+15. **Tenant-owned factories pass `school_id` explicitly.** Do not rely on
    `BelongsToSchool` stamping it from the ambient tenant.
 
 ## Conventions

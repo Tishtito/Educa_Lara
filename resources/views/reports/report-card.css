@@ -1,0 +1,274 @@
+/*
+ * Print stylesheet for report-card PDFs, rendered by dompdf.
+ *
+ * Ported from legacy lower-classes/admin/css/report_pdf.css (Dev branch). Its
+ * reasoning still holds: dompdf has no usable float, flex or grid, so layout is
+ * table-based, and everything is sized in px against A4 at 96 DPI so one
+ * student's card fits on exactly one page.
+ *
+ * Additions over legacy, all marked below: filled-in values (legacy printed
+ * only blank lines), the term card's second exam column pair, and strand rows.
+ */
+
+@page {
+    margin: 1.2cm;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: Helvetica, sans-serif;
+    font-size: 12px;
+    color: #222;
+}
+
+.report-page {
+    page-break-after: always;
+}
+
+/* The last report must not emit a trailing blank page. */
+.report-page-last {
+    page-break-after: auto;
+}
+
+/* ---------- school header ---------- */
+
+.rp-header {
+    width: 100%;
+    border-collapse: collapse;
+    border-bottom: 1px solid #3989c6;
+    margin-bottom: 12px;
+}
+
+.rp-header td {
+    vertical-align: middle;
+    padding: 0 0 8px 0;
+}
+
+.rp-logo {
+    width: 125px;
+}
+
+.rp-logo img {
+    width: 105px;
+    height: auto;
+}
+
+.rp-school {
+    text-align: right;
+}
+
+.rp-school-name {
+    font-size: 20px;
+    font-weight: bold;
+    margin-bottom: 3px;
+}
+
+.rp-school-line {
+    font-size: 12px;
+    color: #555;
+}
+
+/* ---------- student / report meta ---------- */
+
+.rp-meta {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 14px;
+}
+
+.rp-meta td {
+    vertical-align: top;
+    padding: 0;
+}
+
+.rp-meta-right {
+    text-align: right;
+}
+
+.rp-label {
+    font-size: 11px;
+    color: #888;
+}
+
+.rp-student {
+    font-size: 18px;
+    font-weight: bold;
+    margin: 2px 0 4px 0;
+}
+
+.rp-title {
+    font-size: 18px;
+    font-weight: bold;
+    color: #3989c6;
+    margin-bottom: 4px;
+}
+
+.rp-meta-line {
+    font-size: 12px;
+}
+
+/* ---------- marks table ---------- */
+
+.rp-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 16px;
+}
+
+.rp-table th {
+    background: #3989c6;
+    color: #fff;
+    font-weight: normal;
+    font-size: 12px;
+    padding: 9px 10px;
+    text-align: left;
+}
+
+.rp-table th.rp-right {
+    text-align: right;
+}
+
+.rp-table td {
+    padding: 9px 10px;
+    background: #eee;
+    border-bottom: 1px solid #fff;
+    font-size: 12px;
+}
+
+.rp-table td.rp-no {
+    width: 30px;
+    text-align: center;
+    color: #fff;
+    background: #3989c6;
+}
+
+.rp-table td.rp-subject {
+    color: #3989c6;
+    font-size: 13px;
+}
+
+.rp-table td.rp-mark {
+    width: 120px;
+    text-align: right;
+    background: #ddd;
+}
+
+.rp-table td.rp-level {
+    width: 180px;
+    text-align: right;
+    background: #3989c6;
+    color: #fff;
+}
+
+/* Addition: the term card has two mark/level pairs, so each is narrower. */
+.rp-term td.rp-mark {
+    width: 70px;
+}
+
+.rp-term td.rp-level {
+    width: 115px;
+    font-size: 11px;
+}
+
+/* Addition: strand rows (a subject's papers) — indented, lighter, unbanded. */
+.rp-table tr.rp-paper td {
+    padding-top: 6px;
+    padding-bottom: 6px;
+    font-size: 11px;
+}
+
+.rp-table tr.rp-paper td.rp-subject {
+    padding-left: 24px;
+    color: #555;
+    font-size: 11px;
+}
+
+.rp-table tr.rp-paper td.rp-level {
+    background: #cfe0ee;
+    color: #555;
+}
+
+.rp-table tfoot td {
+    background: #fff;
+    border-bottom: none;
+    border-top: 1px solid #3989c6;
+    color: #3989c6;
+    font-size: 13px;
+    font-weight: bold;
+    padding-top: 10px;
+}
+
+.rp-table tfoot td.rp-mark,
+.rp-table tfoot td.rp-level {
+    background: #fff;
+    color: #3989c6;
+}
+
+.rp-table tr {
+    page-break-inside: avoid;
+}
+
+/* ---------- remarks and signature fields ---------- */
+
+.rp-field-label {
+    font-size: 12px;
+    font-weight: bold;
+    margin-bottom: 26px;
+}
+
+/* Addition: a label followed by a typed value sits closer to it. */
+.rp-field-label.rp-has-value {
+    margin-bottom: 4px;
+}
+
+/* Addition: a typed value, printed on its fill-in line. */
+.rp-value {
+    font-size: 12px;
+    padding-bottom: 3px;
+    border-bottom: 1px solid #999;
+    margin-bottom: 18px;
+    min-height: 14px;
+}
+
+.rp-remarks-text {
+    font-size: 12px;
+    line-height: 18px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #999;
+    margin-bottom: 18px;
+}
+
+/* Blank fill-in line: a real rule, not a run of hyphens that overflows the page. */
+.rp-rule {
+    border-bottom: 1px solid #999;
+    font-size: 1px;
+    line-height: 1px;
+    margin-bottom: 26px;
+}
+
+.rp-remarks {
+    margin-bottom: 6px;
+}
+
+.rp-fields {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 6px;
+}
+
+.rp-fields td {
+    width: 50%;
+    vertical-align: top;
+    padding: 0 14px 10px 0;
+}
+
+/* ---------- footer ---------- */
+
+.rp-footer {
+    border-top: 1px solid #aaa;
+    padding-top: 8px;
+    text-align: center;
+    color: #777;
+    font-size: 11px;
+}

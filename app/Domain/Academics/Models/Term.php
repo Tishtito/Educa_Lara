@@ -22,6 +22,7 @@ class Term extends Model
             'term_number' => 'integer',
             'starts_on' => 'date',
             'ends_on' => 'date',
+            'feeding_fee' => 'decimal:2',
             'is_current' => 'boolean',
         ];
     }
