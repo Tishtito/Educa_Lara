@@ -71,8 +71,9 @@ class AuthTest extends TestCase
         SchoolDomain::factory()->create(['school_id' => $school->id, 'hostname' => 'gatimu.educa.test']);
         $user = User::factory()->create(['school_id' => $school->id, 'username' => 'pkariuki']);
 
-        $this->withHeader('Host', 'gatimu.educa.test')
-            ->postJson('/api/auth/login', ['username' => 'pkariuki', 'password' => 'password'])
+        // A full URL, not withHeader('Host'): the test client takes the host from
+        // the URL, so a Host header never reaches $request->getHost().
+        $this->postJson('http://gatimu.educa.test/api/auth/login', ['username' => 'pkariuki', 'password' => 'password'])
             ->assertOk()
             ->assertJsonPath('data.user.id', $user->id);
     }
@@ -151,6 +152,14 @@ class AuthTest extends TestCase
         $this->withHeader('Authorization', "Bearer {$token}")
             ->postJson('/api/auth/logout')
             ->assertOk();
+
+        // The row is what matters: a revoked token must not exist.
+        $this->assertDatabaseCount('personal_access_tokens', 0);
+
+        // The auth manager caches the resolved user for the life of the app
+        // instance, which a test shares across requests. Clear it, or the next
+        // request is authenticated from memory rather than from the token.
+        $this->app['auth']->forgetGuards();
 
         $this->withHeader('Authorization', "Bearer {$token}")
             ->getJson('/api/auth/me')

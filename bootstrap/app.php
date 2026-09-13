@@ -6,6 +6,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Middleware\SubstituteBindings;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -25,6 +26,17 @@ return Application::configure(basePath: dirname(__DIR__))
             'tenant' => ResolveTenant::class,
             'role' => EnsureUserHasRole::class,
         ]);
+
+        // ...and it must ALSO run before route model binding. SubstituteBindings
+        // sits in the api group, so without this it resolves {exam} before any
+        // tenant is set: TenantScope fails closed, the lookup finds nothing, and
+        // GET /api/exams/{exam} 404s for every user, including for their own
+        // school's exams. Laravel's priority list already puts authentication
+        // ahead of bindings, so this yields auth -> tenant -> bindings.
+        $middleware->prependToPriorityList(
+            before: SubstituteBindings::class,
+            prepend: ResolveTenant::class,
+        );
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

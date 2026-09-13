@@ -22,7 +22,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->unique(['class_id', 'academic_year_id', 'user_id'], 'cta_class_year_user_unique');
-            $table->index(['school_id', 'user_id', 'academic_year_id']);
+            $table->index(['school_id', 'user_id', 'academic_year_id'], 'cta_school_user_year_idx');
         });
 
         /**

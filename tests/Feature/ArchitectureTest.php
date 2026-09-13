@@ -41,7 +41,7 @@ class ArchitectureTest extends TestCase
                 continue;
             }
 
-            $contents = file_get_contents($path);
+            $contents = $this->codeWithoutComments($path);
 
             foreach (self::RAW_QUERY_PATTERNS as $pattern) {
                 if (str_contains($contents, $pattern)) {
@@ -80,6 +80,25 @@ class ArchitectureTest extends TestCase
                 "{$relative} must take \$schoolId as a constructor argument."
             );
         }
+    }
+
+    /**
+     * Source with comments and docblocks removed, so that a comment explaining
+     * WHY raw queries are dangerous (TenantScope has one) is not mistaken for one.
+     */
+    private function codeWithoutComments(string $path): string
+    {
+        $code = '';
+
+        foreach (token_get_all(file_get_contents($path)) as $token) {
+            if (is_array($token) && in_array($token[0], [T_COMMENT, T_DOC_COMMENT], true)) {
+                continue;
+            }
+
+            $code .= is_array($token) ? $token[1] : $token;
+        }
+
+        return $code;
     }
 
     /** @return list<SplFileInfo> */

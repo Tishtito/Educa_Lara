@@ -329,7 +329,7 @@ class DemoSchoolSeeder extends Seeder
             }
         }
 
-        $bands = $scale->bands()->orderBy('sort_order')->get();
+        $scale->load('bands');
         $totals = [];
 
         foreach ($enrolments as $index => $enrolment) {
@@ -370,7 +370,7 @@ class DemoSchoolSeeder extends Seeder
                 }
 
                 $scaled = $this->aggregate($levelSubject->aggregation_rule, $rawScores, (float) $levelSubject->scale_max);
-                $band = $bands->first(fn ($b) => $scaled >= (float) $b->min_marks && $scaled <= (float) $b->max_marks);
+                $band = $scale->bandFor($scaled);
 
                 ExamSubjectScore::updateOrCreate(
                     [
@@ -400,7 +400,7 @@ class DemoSchoolSeeder extends Seeder
             $totals[$enrolment->id] = ['total' => $total, 'counted' => $counted, 'enrolment' => $enrolment];
         }
 
-        $this->writeResults($school, $exam, $class, $level, $totals, $bands, count($levelSubjects));
+        $this->writeResults($school, $exam, $class, $level, $totals, $scale, count($levelSubjects));
     }
 
     /**
@@ -435,7 +435,7 @@ class DemoSchoolSeeder extends Seeder
         SchoolClass $class,
         Level $level,
         array $totals,
-        $bands,
+        GradingScale $scale,
         int $subjectCount,
     ): void {
         uasort($totals, fn (array $a, array $b) => $b['total'] <=> $a['total']);
@@ -454,7 +454,7 @@ class DemoSchoolSeeder extends Seeder
             }
 
             $mean = round($row['total'] / max($row['counted'], 1), 2);
-            $band = $bands->first(fn ($b) => $mean >= (float) $b->min_marks && $mean <= (float) $b->max_marks);
+            $band = $scale->bandFor($mean);
 
             ExamStudentResult::updateOrCreate(
                 ['exam_id' => $exam->id, 'enrolment_id' => $row['enrolment']->id],

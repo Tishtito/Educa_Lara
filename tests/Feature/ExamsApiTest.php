@@ -55,6 +55,20 @@ class ExamsApiTest extends TestCase
             ->assertJsonPath('data.0.status', 'locked');
     }
 
+    public function test_it_shows_the_schools_own_exam(): void
+    {
+        // Route model binding must run after tenant resolution. When it ran
+        // first, {exam} was looked up with no tenant, the fail-closed scope hid
+        // it, and this returned 404 — while the "another school's exam is 404"
+        // test below kept passing for the wrong reason.
+        $exam = Exam::factory()->create(['school_id' => $this->school->id]);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->getJson("/api/exams/{$exam->id}")
+            ->assertOk()
+            ->assertJsonPath('data.id', $exam->id);
+    }
+
     public function test_it_cannot_show_another_schools_exam(): void
     {
         $theirs = Exam::factory()->create(['school_id' => School::factory()->create()->id]);

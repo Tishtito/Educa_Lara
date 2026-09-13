@@ -104,9 +104,18 @@ parameter. `MarklistRepository` is the first example.
    set and the fail-closed scope returns nothing — which is correct.
 4. Hostname school ≠ user's school → **403**.
 
-A suspended school is refused. Note the ordering constraint: `tenant` must run
-**after** `auth:sanctum`, so it is listed per route group rather than appended to
-the API middleware group (group middleware runs before route middleware).
+A suspended school is refused.
+
+**Ordering is load-bearing, in both directions.** `tenant` must run **after**
+`auth:sanctum` (it needs the user), so it is listed per route group rather than
+appended to the API group, whose middleware runs before route middleware. It must
+also run **before** route model binding: `SubstituteBindings` sits in the API
+group, and when it ran first, `{exam}` was looked up with no tenant, the
+fail-closed scope hid it, and every `GET /api/exams/{exam}` returned 404 — for
+the school's own exams too. `bootstrap/app.php` fixes this with
+`prependToPriorityList(before: SubstituteBindings::class, ...)`, giving
+auth → tenant → bindings. `ExamsApiTest::test_it_shows_the_schools_own_exam`
+pins it.
 
 ---
 
@@ -200,6 +209,20 @@ legacy shape.
 The platform default (`school_id` NULL) is four contiguous bands: BE-1 0–25,
 AE-2 26–50, ME-3 51–75, EE-4 76–100.
 
+### Marks are rounded half-up before band lookup
+
+Bands are whole-number ranges but scores are decimals, and aggregation produces
+fractions — a two-paper English at 50.50 falls between AE-2's 50 and ME-3's 51
+and matches no band. **Always resolve through `GradingScale::bandFor()`**, which
+rounds half-up first; never compare a raw score against `min_marks`/`max_marks`
+directly.
+
+Half-up is what legacy did implicitly: it wrote the float from
+`((RDG + GRM) / combinedMax) * 100` into the `INT` column `exam_results.English`,
+and MySQL rounds on insert. Matching it keeps imported pupils in the band their
+printed report card shows. `GradingScaleValidateBandsTest` checks that every
+hundredth from 0.00 to 100.00 resolves.
+
 ---
 
 ## 6. Other legacy defects the schema closes
@@ -250,8 +273,32 @@ happened to have resolved.
 
 ## 8. Conversion status
 
+Verified 2026-09-13: `migrate:fresh --seed` clean on MySQL, 63/63 tests passing,
+and the slice exercised by hand against `php artisan serve` (login, tenant
+isolation between two seeded schools, marklist, role refusals, superadmin
+`X-School`, token revocation).
+
 | Area | State |
 |---|---|
+| Schema (30+ tables) | done, migrates on MySQL |
+| Domain models + tenancy kernel | done |
+| Tenancy resolution + enforcement | done, tested |
+| Sanctum auth, roles | done, tested |
+| Reference + demo seeders, factories | done |
+| Exams API, marklist read endpoint | done, tested |
+| `AggregationService`, `GradeResolver`, `RankingService`, `StatisticsService` | **not started** — next milestone |
+| Mark entry endpoints (examiner) | not started |
+| Reports / report cards / PDF | not started — legacy `lower-classes` reports are still changing on `Dev` and must be tracked |
+| Legacy ETL + `legacy:verify` | not started |
+| Analytics (MSS, stream lists) | not started |
+| SMS | not started — legacy only ever appended to `logs/sms.log`; no gateway existed |
+| Fees, attendance, timetable, parent/student portals | absent from legacy; new build, not conversion |
+
+Until the compute services exist, the marklist reads aggregates and grade bands
+that the seeder writes. `DemoSchoolSeeder::aggregate()` is a fixture-only stand-in
+for `AggregationService` and should be deleted once the real one lands.
+
+---|---|
 | Schema (30+ tables) | done |
 | Domain models + tenancy kernel | done |
 | Tenancy resolution + enforcement | done, tested |

@@ -61,8 +61,8 @@ return new class extends Migration
             // student_id+exam_id), so pre-existing duplicates go to quarantine.
             $table->unique(['exam_id', 'student_id']);
 
-            $table->index(['school_id', 'exam_id', 'class_id', 'total_marks']);
-            $table->index(['school_id', 'exam_id', 'level_id', 'total_marks']);
+            $table->index(['school_id', 'exam_id', 'class_id', 'total_marks'], 'esr_exam_class_total_idx');
+            $table->index(['school_id', 'exam_id', 'level_id', 'total_marks'], 'esr_exam_level_total_idx');
             $table->index(['school_id', 'student_id', 'exam_id']);
         });
 

@@ -20,9 +20,16 @@ recoverable from the code alone.
 4. **`Rule::exists` is not tenant-scoped** — it uses the query builder, not
    Eloquent. Add `->where('school_id', $schoolId)` to every exists rule against a
    tenant-owned table.
-5. **`tenant` middleware runs after `auth:sanctum`**, so it is listed per route
-   group, never appended to the API group.
-6. **Tenant-owned factories pass `school_id` explicitly.** Do not rely on
+5. **`tenant` runs after `auth:sanctum` and before route model binding.** It is
+   listed per route group (never appended to the API group), and
+   `bootstrap/app.php` prioritises it ahead of `SubstituteBindings`. Get either
+   wrong and bound models 404 for their own school.
+6. **Resolve grade bands only through `GradingScale::bandFor()`.** It rounds
+   half-up first; bands are whole-number ranges and a raw decimal like 50.50
+   falls between them.
+7. **MySQL identifiers max out at 64 chars.** Name composite indexes explicitly
+   (`esr_exam_class_total_idx` style) — SQLite never complains.
+8. **Tenant-owned factories pass `school_id` explicitly.** Do not rely on
    `BelongsToSchool` stamping it from the ambient tenant.
 
 ## Conventions

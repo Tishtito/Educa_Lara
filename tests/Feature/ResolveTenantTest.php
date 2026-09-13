@@ -46,8 +46,7 @@ class ResolveTenantTest extends TestCase
         $user = User::factory()->withRole(Role::SCHOOL_ADMIN)->create(['school_id' => $mine->id]);
 
         $this->actingAs($user, 'sanctum')
-            ->withHeader('Host', 'theirs.educa.test')
-            ->getJson('/api/exams')
+            ->getJson('http://theirs.educa.test/api/exams')
             ->assertStatus(403);
     }
 
@@ -60,8 +59,7 @@ class ResolveTenantTest extends TestCase
         Exam::factory()->create(['school_id' => $school->id]);
 
         $this->actingAs($user, 'sanctum')
-            ->withHeader('Host', 'mine.educa.test')
-            ->getJson('/api/exams')
+            ->getJson('http://mine.educa.test/api/exams')
             ->assertOk()
             ->assertJsonCount(1, 'data');
     }

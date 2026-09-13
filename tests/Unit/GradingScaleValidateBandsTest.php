@@ -80,6 +80,31 @@ class GradingScaleValidateBandsTest extends TestCase
         $this->assertSame(['Scale has no bands.'], $scale->validateBands());
     }
 
+    public function test_decimal_marks_between_whole_number_bands_still_resolve(): void
+    {
+        // 50.50 sits between AE-2 (26-50) and ME-3 (51-75). It came out of the
+        // demo seeder's two-paper English and resolved to no band at all.
+        $this->seed(PlatformGradingScaleSeeder::class);
+        $scale = GradingScale::whereNull('school_id')->firstOrFail();
+
+        $this->assertSame('ME-3', $scale->bandFor(50.50)?->abbreviation);
+        $this->assertSame('AE-2', $scale->bandFor(50.49)?->abbreviation);
+        $this->assertSame('AE-2', $scale->bandFor(25.50)?->abbreviation);
+        $this->assertSame('BE-1', $scale->bandFor(0.0)?->abbreviation);
+        $this->assertSame('EE-4', $scale->bandFor(100.0)?->abbreviation);
+    }
+
+    public function test_every_hundredth_from_0_to_100_resolves_to_a_band(): void
+    {
+        $this->seed(PlatformGradingScaleSeeder::class);
+        $scale = GradingScale::whereNull('school_id')->firstOrFail();
+
+        for ($hundredths = 0; $hundredths <= 10000; $hundredths++) {
+            $mark = $hundredths / 100;
+            $this->assertNotNull($scale->bandFor($mark), "No band for {$mark}");
+        }
+    }
+
     /** @param array<int, array{0: int, 1: int}> $ranges */
     private function bands(GradingScale $scale, array $ranges): void
     {
