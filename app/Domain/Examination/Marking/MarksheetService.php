@@ -7,6 +7,7 @@ namespace App\Domain\Examination\Marking;
 use App\Domain\Academics\Models\SchoolClass;
 use App\Domain\Curriculum\Models\LevelSubject;
 use App\Domain\Curriculum\Models\SubjectPaper;
+use App\Domain\Examination\ExamPapers;
 use App\Domain\Examination\Exceptions\MarkEntryClosed;
 use App\Domain\Examination\Models\Exam;
 use App\Domain\Examination\Models\ExamSubject;
@@ -45,6 +46,8 @@ use Illuminate\Validation\ValidationException;
  */
 class MarksheetService
 {
+    public function __construct(private readonly ExamPapers $papers) {}
+
     /** Resolve and validate a sheet's class and subject against the exam. */
     public function resolve(Exam $exam, int $classId, int $levelSubjectId): array
     {
@@ -66,8 +69,8 @@ class MarksheetService
             throw ValidationException::withMessages(['level_subject_id' => ['This subject is not examined for this class in this exam.']]);
         }
 
-        if ($levelSubject->papers->isEmpty()) {
-            throw ValidationException::withMessages(['level_subject_id' => ['This subject has no papers configured.']]);
+        if ($this->papers->forSubject($exam, $levelSubject->id)->isEmpty()) {
+            throw ValidationException::withMessages(['level_subject_id' => ['This subject has no papers in this exam.']]);
         }
 
         return [$class, $levelSubject];
@@ -75,7 +78,8 @@ class MarksheetService
 
     public function sheet(Exam $exam, SchoolClass $class, LevelSubject $levelSubject): array
     {
-        $maxes = $this->effectiveMaxes($exam, $class->id, $levelSubject->papers);
+        $papers = $this->papers->forSubject($exam, $levelSubject->id);
+        $maxes = $this->effectiveMaxes($exam, $class->id, $papers);
         $enrolments = $this->roster($exam, $class->id, $levelSubject->id);
 
         $entered = ExamSubjectScore::query()
@@ -114,13 +118,13 @@ class MarksheetService
                 'aggregation_rule' => $levelSubject->aggregation_rule->value,
                 'aggregation_rule_label' => $levelSubject->aggregation_rule->label(),
             ],
-            'papers' => $levelSubject->papers->map(fn (SubjectPaper $p) => [
+            'papers' => $papers->map(fn (SubjectPaper $p) => [
                 'subject_paper_id' => $p->id,
                 'sequence' => $p->sequence,
                 'name' => $p->name,
                 'max_marks' => $maxes[$p->id],
             ])->values()->all(),
-            'students' => $enrolments->map(function (StudentEnrolment $enrolment) use ($levelSubject, $entered, $derived) {
+            'students' => $enrolments->map(function (StudentEnrolment $enrolment) use ($papers, $entered, $derived) {
                 $subject = $derived->get($enrolment->id);
 
                 return [
@@ -128,7 +132,7 @@ class MarksheetService
                     'student_id' => $enrolment->student_id,
                     'admission_no' => $enrolment->student->admission_no,
                     'name' => $enrolment->student->full_name,
-                    'marks' => $levelSubject->papers->map(function (SubjectPaper $p) use ($enrolment, $entered) {
+                    'marks' => $papers->map(function (SubjectPaper $p) use ($enrolment, $entered) {
                         $row = $entered->get($enrolment->id.':'.$p->id);
 
                         return [
@@ -168,8 +172,9 @@ class MarksheetService
                 throw MarkEntryClosed::forExam($exam);
             }
 
-            $papers = $levelSubject->papers->keyBy('id');
-            $maxes = $this->effectiveMaxes($exam, $class->id, $levelSubject->papers);
+            $inExam = $this->papers->forSubject($exam, $levelSubject->id);
+            $papers = $inExam->keyBy('id');
+            $maxes = $this->effectiveMaxes($exam, $class->id, $inExam);
 
             $enrolments = StudentEnrolment::query()
                 ->where('academic_year_id', $exam->academic_year_id)
@@ -285,12 +290,12 @@ class MarksheetService
             }
 
             $paper = SubjectPaper::query()->find($subjectPaperId);
-            $inExam = $paper !== null && ExamSubject::query()
+            $subjectInExam = $paper !== null && ExamSubject::query()
                 ->where('exam_id', $exam->id)
                 ->where('level_subject_id', $paper->level_subject_id)
                 ->exists();
 
-            if (! $inExam) {
+            if (! $subjectInExam || ! $this->papers->includes($exam, $paper)) {
                 throw ValidationException::withMessages(['subject_paper_id' => ['This paper is not part of the exam.']]);
             }
 

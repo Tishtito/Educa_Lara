@@ -80,13 +80,17 @@ class ReportCardService
 
     /**
      * Freeze every student's cards for an exam being published. Idempotent: one
-     * row per student, replaced if publication is repeated.
+     * row per student. Repeating publication replaces a card only if its content
+     * changed (a card is not re-dated just because it was frozen again), and
+     * removes the cards of students no longer in the exam.
      *
      * @return int students snapshotted
      */
     public function snapshot(Exam $exam, ?User $publishedBy = null): int
     {
         $count = 0;
+        $students = [];
+        $existing = ReportCardSnapshot::query()->where('exam_id', $exam->id)->where('format', 'json')->get()->keyBy('student_id');
 
         foreach ($exam->classes()->with(['grade', 'stream'])->get() as $class) {
             $single = $this->builder->forClass($exam, $class, ReportLayout::SINGLE);
@@ -99,9 +103,18 @@ class ReportCardService
 
             foreach ($single as $enrolmentId => $card) {
                 $payload = ['single' => $card, 'term' => $term[$enrolmentId] ?? null];
+                $studentId = $card['student']['student_id'];
+                $students[] = $studentId;
+                $count++;
+
+                $previous = $existing->get($studentId);
+                if ($previous !== null && $previous->isIntact() && (int) $previous->enrolment_id === (int) $enrolmentId
+                    && self::undated($previous->payload ?? []) === self::undated($payload)) {
+                    continue;
+                }
 
                 ReportCardSnapshot::query()->updateOrCreate(
-                    ['exam_id' => $exam->id, 'student_id' => $card['student']['student_id'], 'format' => 'json'],
+                    ['exam_id' => $exam->id, 'student_id' => $studentId, 'format' => 'json'],
                     [
                         'school_id' => $exam->school_id,
                         'enrolment_id' => $enrolmentId,
@@ -111,12 +124,24 @@ class ReportCardService
                         'published_by' => $publishedBy?->id,
                     ],
                 );
-
-                $count++;
             }
         }
 
+        ReportCardSnapshot::query()->where('exam_id', $exam->id)->whereNotIn('student_id', $students)->delete();
+
         return $count;
+    }
+
+    /** A payload's checksum ignoring when it was generated. */
+    private static function undated(array $payload): string
+    {
+        foreach (['single', 'term'] as $layout) {
+            if (is_array($payload[$layout] ?? null)) {
+                unset($payload[$layout]['generated_at']);
+            }
+        }
+
+        return ReportCardSnapshot::checksumFor($payload);
     }
 
     private function isFrozen(Exam $exam): bool

@@ -20,6 +20,18 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class StudentEnrolment extends Model
 {
+    /** Read directly from a legacy student_classes row for that year. */
+    public const ORIGIN_LEGACY = 'legacy_imported';
+
+    /**
+     * Deduced by the legacy import: results exist for a year with no class row
+     * for it, so the class comes from the student's nearest row. Reviewable.
+     */
+    public const ORIGIN_INFERRED_YEAR = 'inferred_year';
+
+    /** The kept one of several legacy class rows for the same student and year. */
+    public const ORIGIN_RESOLVED_DUPLICATE = 'resolved_duplicate';
+
     use BelongsToSchool;
     use HasFactory;
 

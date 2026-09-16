@@ -55,6 +55,22 @@ recoverable from the code alone.
    default). `bootstrap/app.php` renders them; controllers do not catch them.
 15. **Tenant-owned factories pass `school_id` explicitly.** Do not rely on
    `BelongsToSchool` stamping it from the ambient tenant.
+16. **Legacy data is children's personal data.** Real dumps are restored and
+   imported locally only. Never commit a dump or an import/verify report, and
+   never put a real name in a test — `tests/Support/LegacyFixture.php` is
+   synthetic and reproduces each production quirk instead.
+17. **The legacy importer must stay re-runnable.** Every row it writes is
+   recorded in `legacy_migration_map`; a second run with unchanged legacy data
+   must change nothing (`LegacyImportRunTest::test_importing_twice_changes_nothing`).
+   Never write an admission number, password or other field the school can
+   edit after import on a re-run. Anything the importer cannot decide goes to
+   the quarantine or to a `legacy_decisions` question — never a guess.
+
+18. **People-facing email extends `App\Notifications\EducaMail`.** It queues
+   on `notifications` after commit, sends under the school's name, logs to
+   `email_log`, and must be `ShouldBeEncrypted` if it carries a sign-in link.
+   Never `Mail::send` to a person directly. Links go through `AccountLinks`,
+   which stores only token hashes. `docs/email.md`.
 
 ## Conventions
 
@@ -70,4 +86,4 @@ recoverable from the code alone.
 ## Legacy source
 
 `../Educa_vol_1` — `lower-classes/` is the most current deployment and the best
-reference for behaviour.
+reference for behaviour. Importing a school's data: `docs/legacy-import.md`.

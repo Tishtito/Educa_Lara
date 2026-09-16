@@ -29,10 +29,18 @@ class ExamController extends Controller
             ->when($request->integer('academic_year_id'), fn ($q, $v) => $q->where('academic_year_id', $v))
             ->when($request->integer('term_id'), fn ($q, $v) => $q->where('term_id', $v))
             ->when($request->integer('level_id'), fn ($q, $v) => $q->where('level_id', $v))
-            ->when($request->string('status')->toString(), fn ($q, $v) => $q->where('status', $v))
+            ->when(
+                $request->string('status')->toString(),
+                fn ($q, $v) => $q->where('status', $v),
+                // Archived exams are historical (ExamStatus::ARCHIVED): hidden from
+                // the default listing, reachable by asking for them.
+                fn ($q) => $request->boolean('include_archived') ? $q : $q->where('status', '!=', ExamStatus::ARCHIVED),
+            )
             ->orderByDesc('starts_on')
             ->orderByDesc('id')
-            ->paginate($request->integer('per_page') ?: 25);
+            // Capped: an uncapped per_page lets one request load every exam and
+            // its relations.
+            ->paginate(min(max($request->integer('per_page') ?: 25, 1), 100));
 
         return response()->json([
             'success' => true,
@@ -78,7 +86,7 @@ class ExamController extends Controller
             );
         }
 
-        $exam->load(['academicYear', 'term', 'level']);
+        $exam->load(['academicYear', 'term', 'level', 'classes']);
 
         return response()->json([
             'success' => true,

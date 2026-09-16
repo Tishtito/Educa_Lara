@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Domain\Examination\Enums\ExamStatus;
 use App\Domain\Examination\Enums\ExamType;
 use App\Domain\Examination\Models\Exam;
+use App\Domain\Examination\Models\ExamStudentResult;
 use App\Domain\Examination\Models\ExamSubjectScore;
 use App\Domain\Grading\Models\GradeBand;
 use App\Domain\People\Models\StudentEnrolment;
@@ -142,6 +143,38 @@ class ReportCardSnapshotTest extends TestCase
         $this->inSchool(fn () => app(ReportCardService::class)->snapshot($this->endTerm->fresh(), $this->admin));
 
         $this->assertSame(8, $this->inSchool(fn () => ReportCardSnapshot::query()->where('exam_id', $this->endTerm->id)->count()));
+    }
+
+    public function test_freezing_unchanged_cards_again_does_not_re_date_them(): void
+    {
+        $this->publish();
+        $before = $this->inSchool(fn () => ReportCardSnapshot::query()->where('exam_id', $this->endTerm->id)->orderBy('id')->get(['id', 'checksum', 'generated_at'])->toArray());
+
+        $this->travel(1)->hours();
+        $this->inSchool(fn () => app(ReportCardService::class)->snapshot($this->endTerm->fresh(), $this->admin));
+
+        $this->assertSame($before, $this->inSchool(fn () => ReportCardSnapshot::query()->where('exam_id', $this->endTerm->id)->orderBy('id')->get(['id', 'checksum', 'generated_at'])->toArray()));
+    }
+
+    public function test_freezing_again_replaces_a_tampered_card_and_drops_students_no_longer_in_the_exam(): void
+    {
+        $this->publish();
+
+        [$tampered, $gone] = $this->inSchool(function () {
+            $snapshots = ReportCardSnapshot::query()->where('exam_id', $this->endTerm->id)->orderBy('id')->get();
+            ReportCardSnapshot::query()->whereKey($snapshots[0]->id)->update(['checksum' => str_repeat('0', 64)]);
+            ExamSubjectScore::query()->where('exam_id', $this->endTerm->id)->where('student_id', $snapshots[1]->student_id)->delete();
+            ExamStudentResult::query()->where('exam_id', $this->endTerm->id)->where('student_id', $snapshots[1]->student_id)->delete();
+
+            return [$snapshots[0]->id, $snapshots[1]->student_id];
+        });
+
+        $this->inSchool(fn () => app(ReportCardService::class)->snapshot($this->endTerm->fresh(), $this->admin));
+
+        $this->inSchool(function () use ($tampered, $gone) {
+            $this->assertTrue(ReportCardSnapshot::query()->findOrFail($tampered)->isIntact());
+            $this->assertFalse(ReportCardSnapshot::query()->where('exam_id', $this->endTerm->id)->where('student_id', $gone)->exists());
+        });
     }
 
     public function test_a_class_list_of_a_published_exam_comes_from_snapshots(): void

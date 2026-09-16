@@ -17,6 +17,11 @@ export default defineConfig({
         tailwindcss(),
     ],
     server: {
+        // This Vite server only builds Laravel's welcome page assets; the app
+        // itself is a JSON API. Ports 5173 and 5174 belong to ../Educa_Admin
+        // and ../Educa_Portal, which must not have to fight for them.
+        port: 5170,
+        strictPort: true,
         watch: {
             ignored: ['**/storage/framework/views/**'],
         },

@@ -39,7 +39,7 @@ class DatabaseSeeder extends Seeder
     private function seedPlatformAdmin(): void
     {
         $user = User::withoutGlobalScopes()->updateOrCreate(
-            ['school_key' => 0, 'username' => 'superadmin'],
+            ['username' => 'superadmin'],
             [
                 'school_id' => null,
                 'name' => 'Platform Administrator',

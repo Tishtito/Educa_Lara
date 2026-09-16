@@ -10,6 +10,7 @@ use App\Domain\Curriculum\Models\LevelSubject;
 use App\Domain\Curriculum\Models\SubjectPaper;
 use App\Domain\Examination\Enums\ExamStatus;
 use App\Domain\Examination\Enums\ExamType;
+use App\Domain\Examination\ExamPapers;
 use App\Domain\Examination\Models\Exam;
 use App\Domain\Examination\Models\ExamStudentResult;
 use App\Domain\Examination\Models\ExamSubject;
@@ -52,6 +53,8 @@ use Illuminate\Support\Collection;
  */
 class ReportCardBuilder
 {
+    public function __construct(private readonly ExamPapers $papers) {}
+
     /** Legacy's footer, the default until a school sets its own. */
     public const DEFAULT_FOOTER = 'This performance report must reach the parent or guardian; failure to deliver it will be treated as an indiscipline case.';
 
@@ -147,6 +150,7 @@ class ReportCardBuilder
         $bands = GradeBand::query()->whereIn('id', $bandIds)->get()->keyBy('id');
 
         $subjects = $this->subjectsFor($exams, $class, $layout);
+        $papersInExam = $this->papersFor($exams, $subjects);
         $entries = ReportCardEntry::query()
             ->where('exam_id', $exam->id)
             ->whereIn('enrolment_id', $enrolments->keys())
@@ -170,7 +174,7 @@ class ReportCardBuilder
                     'admission_no' => $enrolment->student->admission_no,
                     'name' => $enrolment->student->full_name,
                 ],
-                'rows' => $this->rows($subjects, $columns, $enrolmentId, $scoreIndex, $bands, $layout),
+                'rows' => $this->rows($subjects, $papersInExam, $columns, $enrolmentId, $scoreIndex, $bands, $layout),
                 'totals' => array_map(function (?Exam $column) use ($enrolmentId, $resultIndex, $bands) {
                     $result = $column === null ? null : $resultIndex->get($column->id.':'.$enrolmentId);
                     $band = $result?->mean_grade_band_id ? $bands->get($result->mean_grade_band_id) : null;
@@ -200,6 +204,33 @@ class ReportCardBuilder
      *
      * @return Collection<int, LevelSubject>
      */
+    /**
+     * The papers each subject was actually set in these exams — a subset of its
+     * catalogue, chosen per exam. A TERM card covers two exams, so a paper set
+     * by either of them earns a row.
+     *
+     * @param  Collection<int, Exam>  $exams
+     * @param  Collection<int, LevelSubject>  $subjects
+     * @return array<int, list<SubjectPaper>>
+     */
+    private function papersFor(Collection $exams, Collection $subjects): array
+    {
+        $bySubject = [];
+
+        foreach ($exams as $exam) {
+            foreach ($this->papers->forExam($exam, $subjects->pluck('id')) as $levelSubjectId => $papers) {
+                foreach ($papers as $paper) {
+                    $bySubject[$levelSubjectId][$paper->id] = $paper;
+                }
+            }
+        }
+
+        return array_map(
+            fn (array $papers) => array_values(collect($papers)->sortBy('sequence')->all()),
+            $bySubject,
+        );
+    }
+
     private function subjectsFor(Collection $exams, SchoolClass $class, ReportLayout $layout): Collection
     {
         return ExamSubject::query()
@@ -216,13 +247,14 @@ class ReportCardBuilder
     }
 
     /** @return list<array<string, mixed>> */
-    private function rows(Collection $subjects, array $columns, int $enrolmentId, Collection $scoreIndex, Collection $bands, ReportLayout $layout): array
+    /** @param  array<int, list<SubjectPaper>>  $papersInExam */
+    private function rows(Collection $subjects, array $papersInExam, array $columns, int $enrolmentId, Collection $scoreIndex, Collection $bands, ReportLayout $layout): array
     {
         $rows = [];
 
         foreach ($subjects as $levelSubject) {
-            if ($layout === ReportLayout::TERM && ! $levelSubject->isSinglePaper()) {
-                foreach ($levelSubject->papers as $paper) {
+            if ($layout === ReportLayout::TERM && count($papersInExam[$levelSubject->id] ?? []) > 1) {
+                foreach ($papersInExam[$levelSubject->id] as $paper) {
                     /** @var SubjectPaper $paper */
                     $rows[] = [
                         'kind' => 'paper',

@@ -14,10 +14,9 @@ use Illuminate\Support\Str;
 /**
  * Replaces the stock skeleton factory, which pointed at the deleted
  * App\Models\User and produced rows the recreated users table rejects (no
- * username, no school_key).
+ * username).
  *
- * school_key is derived from school_id by the model's saving hook, so it is
- * never set here.
+ * Usernames and emails are unique platform-wide, hence fake()->unique().
  *
  * @extends Factory<User>
  */

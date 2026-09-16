@@ -86,8 +86,11 @@ return new class extends Migration
             $table->index(['school_id', 'level_id', 'display_order']);
         });
 
-        // 1..N per level_subject; ALWAYS at least one row, so a score is always
-        // entered against a paper and never against a subject directly.
+        // The catalogue of papers a subject can have: 1..N per level_subject,
+        // ALWAYS at least one row, so a score is always entered against a paper
+        // and never against a subject directly. Which of them an exam actually
+        // sets is the exam's own choice (exam_subject_papers), so paper_count
+        // above is the size of the catalogue, not of any one exam.
         Schema::create('subject_papers', function (Blueprint $table) {
             $table->id();
             $table->foreignId('school_id')->constrained()->cascadeOnDelete();

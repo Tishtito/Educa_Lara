@@ -64,6 +64,69 @@ return [
             ]) : [],
         ],
 
+        // Legacy section database, read by legacy:import. Read-only user.
+        'legacy_lower' => [
+            'driver' => 'mysql',
+            'host' => env('LEGACY_DB_HOST', env('DB_HOST', '127.0.0.1')),
+            'port' => env('LEGACY_DB_PORT', env('DB_PORT', '3306')),
+            'database' => env('LEGACY_LOWER_DATABASE', 'legacy_lower'),
+            'username' => env('LEGACY_DB_USERNAME', 'educa_legacy'),
+            'password' => env('LEGACY_DB_PASSWORD', ''),
+            'unix_socket' => env('DB_SOCKET', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            // Tests point every legacy connection at the test database with a
+            // table prefix (phpunit.xml), so they need no extra databases.
+            'prefix' => env('LEGACY_LOWER_PREFIX', ''),
+            'prefix_indexes' => true,
+            // Legacy stores YEAR values of 0000; strict mode would refuse to
+            // compare them. The importer never writes through these connections.
+            'strict' => false,
+            'engine' => null,
+        ],
+
+        // Legacy section database, read by legacy:import. Read-only user.
+        'legacy_upper' => [
+            'driver' => 'mysql',
+            'host' => env('LEGACY_DB_HOST', env('DB_HOST', '127.0.0.1')),
+            'port' => env('LEGACY_DB_PORT', env('DB_PORT', '3306')),
+            'database' => env('LEGACY_UPPER_DATABASE', 'legacy_upper'),
+            'username' => env('LEGACY_DB_USERNAME', 'educa_legacy'),
+            'password' => env('LEGACY_DB_PASSWORD', ''),
+            'unix_socket' => env('DB_SOCKET', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            // Tests point every legacy connection at the test database with a
+            // table prefix (phpunit.xml), so they need no extra databases.
+            'prefix' => env('LEGACY_UPPER_PREFIX', ''),
+            'prefix_indexes' => true,
+            // Legacy stores YEAR values of 0000; strict mode would refuse to
+            // compare them. The importer never writes through these connections.
+            'strict' => false,
+            'engine' => null,
+        ],
+
+        // Legacy section database, read by legacy:import. Read-only user.
+        'legacy_jss' => [
+            'driver' => 'mysql',
+            'host' => env('LEGACY_DB_HOST', env('DB_HOST', '127.0.0.1')),
+            'port' => env('LEGACY_DB_PORT', env('DB_PORT', '3306')),
+            'database' => env('LEGACY_JSS_DATABASE', 'legacy_jss'),
+            'username' => env('LEGACY_DB_USERNAME', 'educa_legacy'),
+            'password' => env('LEGACY_DB_PASSWORD', ''),
+            'unix_socket' => env('DB_SOCKET', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            // Tests point every legacy connection at the test database with a
+            // table prefix (phpunit.xml), so they need no extra databases.
+            'prefix' => env('LEGACY_JSS_PREFIX', ''),
+            'prefix_indexes' => true,
+            // Legacy stores YEAR values of 0000; strict mode would refuse to
+            // compare them. The importer never writes through these connections.
+            'strict' => false,
+            'engine' => null,
+        ],
+
         'mariadb' => [
             'driver' => 'mariadb',
             'url' => env('DB_URL'),

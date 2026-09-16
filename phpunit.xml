@@ -34,6 +34,15 @@
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="QUEUE_LONG_CONNECTION" value="sync"/>
+        <!-- Legacy import tests: synthetic legacy tables inside the test database. -->
+        <env name="LEGACY_DB_USERNAME" value="educa"/>
+        <env name="LEGACY_DB_PASSWORD" value="educa"/>
+        <env name="LEGACY_LOWER_DATABASE" value="educa_lara_test"/>
+        <env name="LEGACY_UPPER_DATABASE" value="educa_lara_test"/>
+        <env name="LEGACY_JSS_DATABASE" value="educa_lara_test"/>
+        <env name="LEGACY_LOWER_PREFIX" value="lgl_"/>
+        <env name="LEGACY_UPPER_PREFIX" value="lgu_"/>
+        <env name="LEGACY_JSS_PREFIX" value="lgj_"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>

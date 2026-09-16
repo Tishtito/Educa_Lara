@@ -13,19 +13,29 @@ class LoginRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $this->merge(['identity' => mb_strtolower(trim((string) $this->input('identity')))]);
+    }
+
     /**
-     * `school` is optional but usually required in practice: users is unique on
-     * (school_key, username), not on username alone, so two schools may each have
-     * a "jkamau". It may be omitted when the request arrives on a hostname that
-     * identifies the school, or for a platform superadmin.
+     * Credentials are (identity, password): the username or the email address,
+     * both unique platform-wide. Legacy asked for a school as well — with one
+     * database per school it had to — and the school code was carried into the
+     * first version of this API. Nobody has to remember it now: the account
+     * names its own school.
      */
     public function rules(): array
     {
         return [
-            'username' => ['required', 'string', 'max:60'],
+            'identity' => ['required', 'string', 'max:190'],
             'password' => ['required', 'string'],
-            'school' => ['sometimes', 'nullable', 'string', 'max:190'],
             'device_name' => ['sometimes', 'nullable', 'string', 'max:120'],
         ];
+    }
+
+    public function messages(): array
+    {
+        return ['identity.required' => 'Enter your username or email address.'];
     }
 }

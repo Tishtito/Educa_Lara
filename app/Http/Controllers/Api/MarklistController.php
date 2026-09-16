@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api;
 use App\Domain\Academics\Models\SchoolClass;
 use App\Domain\Examination\Models\Exam;
 use App\Domain\Examination\Repositories\MarklistRepository;
+use App\Domain\Reporting\ReportAccess;
 use App\Domain\Tenancy\TenantManager;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
@@ -28,7 +29,7 @@ use Illuminate\Http\Request;
  */
 class MarklistController extends Controller
 {
-    public function __invoke(Request $request, Exam $exam, TenantManager $tenancy): JsonResponse
+    public function __invoke(Request $request, Exam $exam, TenantManager $tenancy, ReportAccess $access): JsonResponse
     {
         $validated = $request->validate([
             'class_id' => ['required', 'integer'],
@@ -39,6 +40,20 @@ class MarklistController extends Controller
         $class = SchoolClass::query()
             ->with(['grade', 'stream'])
             ->findOrFail($validated['class_id']);
+
+        // A class teacher sees only the classes they teach in the exam's year —
+        // the same rule as report cards. The role gate alone let any class
+        // teacher read every class's marks.
+        if (! $access->canUseClass($request->user(), $exam, $class->id)) {
+            return response()->json(['success' => false, 'message' => 'You can only open mark lists for classes you teach.'], 403);
+        }
+
+        if (! $exam->classes()->whereKey($class->id)->exists()) {
+            return response()->json([
+                'message' => 'This class is not part of the exam.',
+                'errors' => ['class_id' => ['This class is not part of the exam.']],
+            ], 422);
+        }
 
         $repository = new MarklistRepository($tenancy->currentOrFail()->getKey());
 

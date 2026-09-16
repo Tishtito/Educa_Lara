@@ -55,6 +55,37 @@ class ExamsApiTest extends TestCase
             ->assertJsonPath('data.0.status', 'locked');
     }
 
+    public function test_archived_exams_are_hidden_unless_asked_for(): void
+    {
+        Exam::factory()->create(['school_id' => $this->school->id]);
+        Exam::factory()->create(['school_id' => $this->school->id, 'status' => ExamStatus::ARCHIVED]);
+
+        $this->actingAs($this->admin, 'sanctum')->getJson('/api/exams')
+            ->assertOk()->assertJsonPath('meta.total', 1);
+
+        $this->getJson('/api/exams?include_archived=1')->assertJsonPath('meta.total', 2);
+        $this->getJson('/api/exams?status=archived')->assertJsonPath('meta.total', 1);
+    }
+
+    public function test_page_size_is_capped(): void
+    {
+        $this->actingAs($this->admin, 'sanctum')->getJson('/api/exams?per_page=100000')
+            ->assertOk()->assertJsonPath('meta.per_page', 100);
+    }
+
+    public function test_it_shows_the_exams_classes(): void
+    {
+        $exam = Exam::factory()->create(['school_id' => $this->school->id]);
+        $class = SchoolClass::factory()->create(['school_id' => $this->school->id]);
+        $exam->classes()->attach($class->id, ['school_id' => $this->school->id]);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->getJson("/api/exams/{$exam->id}")
+            ->assertOk()
+            ->assertJsonPath('data.classes.0.id', $class->id)
+            ->assertJsonPath('data.classes.0.name', $class->name);
+    }
+
     public function test_it_shows_the_schools_own_exam(): void
     {
         // Route model binding must run after tenant resolution. When it ran

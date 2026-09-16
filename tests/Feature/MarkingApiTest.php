@@ -454,6 +454,56 @@ class MarkingApiTest extends TestCase
         $this->sheet($this->admin, $this->blue, 'SST')->assertStatus(422)->assertJsonValidationErrors('level_subject_id');
     }
 
+    // ------------------------------------------------- papers, per exam
+
+    /**
+     * The papers of a subject are whatever THIS exam sets. A Mid-Term may set
+     * one English paper where the End-Term sets two, and marking must follow
+     * the exam rather than the subject's catalogue.
+     */
+    public function test_a_sheet_shows_only_the_papers_this_exam_sets(): void
+    {
+        [$reading, $grammar] = $this->paperIds('ENG');
+        $this->inSchool(fn () => ExamSubjectPaper::query()
+            ->where('exam_id', $this->exam->id)->where('subject_paper_id', $grammar)->delete());
+
+        $sheet = $this->sheet($this->examiner, $this->blue, 'ENG')->assertOk();
+
+        $this->assertSame([$reading], array_column($sheet->json('data.papers'), 'subject_paper_id'));
+        $this->assertCount(1, $sheet->json('data.students.0.marks'));
+
+        // The dropped paper is not markable, and its marks-out-of is not settable.
+        $enrolmentId = $this->enrolments($this->blue)[0];
+        $this->save($this->examiner, $this->blue, 'ENG', [$this->mark($enrolmentId, $grammar, 20)])
+            ->assertStatus(422)->assertJsonValidationErrors('marks.0.subject_paper_id');
+        $this->setMax($this->admin, 'ENG', 2, 40)->assertStatus(422)->assertJsonValidationErrors('subject_paper_id');
+
+        // The paper it does set still works.
+        $this->save($this->examiner, $this->blue, 'ENG', [$this->mark($enrolmentId, $reading, 20)])->assertOk();
+    }
+
+    public function test_marking_progress_counts_only_the_papers_this_exam_sets(): void
+    {
+        $grammar = $this->paperIds('ENG')[1];
+        $students = count($this->enrolments($this->blue));
+
+        $before = collect($this->actingAs($this->examiner, 'sanctum')
+            ->getJson("/api/exams/{$this->exam->id}/marking")->json('data.sheets'))
+            ->first(fn ($sheet) => $sheet['class_id'] === $this->blue->id && $sheet['subject_code'] === 'ENG');
+
+        $this->assertSame($students * 2, $before['marks_expected']);
+
+        $this->inSchool(fn () => ExamSubjectPaper::query()
+            ->where('exam_id', $this->exam->id)->where('subject_paper_id', $grammar)->delete());
+
+        $after = collect($this->actingAs($this->examiner, 'sanctum')
+            ->getJson("/api/exams/{$this->exam->id}/marking")->json('data.sheets'))
+            ->first(fn ($sheet) => $sheet['class_id'] === $this->blue->id && $sheet['subject_code'] === 'ENG');
+
+        $this->assertSame($students, $after['marks_expected']);
+        $this->assertCount(1, $after['papers']);
+    }
+
     // --------------------------------------------------------------- max marks
 
     private function setMax(User $as, string $code, int $sequence, float $max, ?SchoolClass $class = null, bool $apply = false)

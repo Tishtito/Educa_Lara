@@ -290,15 +290,28 @@ class DemoSchoolSeeder extends Seeder
         unset($admin);
     }
 
-    /** @param Collection<string, Role> $roles */
+    /**
+     * Usernames are unique platform-wide (sign-in has no school code), so the
+     * first demo school gets the plain names — admin, teacher, examiner — and
+     * later ones get theirs suffixed: admin.riverside.
+     *
+     * @param  Collection<string, Role>  $roles
+     */
     private function user(School $school, string $username, string $name, string $roleSlug, $roles): User
     {
+        $email = "{$username}@{$school->slug}.educa.test";
+        $existing = User::withoutGlobalScopes()->withTrashed()->where('email', $email)->first();
+
+        if ($existing === null && User::withoutGlobalScopes()->withTrashed()->where('username', $username)->exists()) {
+            $username = "{$username}.{$school->slug}";
+        }
+
         $user = User::withoutGlobalScopes()->updateOrCreate(
-            ['school_key' => $school->id, 'username' => $username],
+            ['username' => $existing?->username ?? $username],
             [
                 'school_id' => $school->id,
                 'name' => $name,
-                'email' => "{$username}@{$school->slug}.educa.test",
+                'email' => $email,
                 'password' => 'password',
                 'is_active' => true,
             ]

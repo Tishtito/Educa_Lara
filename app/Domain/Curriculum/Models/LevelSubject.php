@@ -64,13 +64,4 @@ class LevelSubject extends Model
     {
         return $this->belongsTo(AcademicYear::class, 'effective_from_year_id');
     }
-
-    /**
-     * True when this subject is entered as a single paper, so that paper's score
-     * IS the subject score and no derived row is produced.
-     */
-    public function isSinglePaper(): bool
-    {
-        return $this->paper_count <= 1;
-    }
 }

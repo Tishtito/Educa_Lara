@@ -168,4 +168,68 @@ class MarklistRepository
             ])
             ->keyBy('level_subject_id');
     }
+
+    /**
+     * Every student in a grade for an exam, ranked by grade position: the
+     * "stream list" legacy built by writing stream_position during a GET. Read
+     * only here; positions come from the ranking service.
+     *
+     * @return Collection<int, object>
+     */
+    public function gradeStudents(int $examId, int $gradeId): Collection
+    {
+        return DB::table('exam_student_results as r')
+            ->join('students as st', 'st.id', '=', 'r.student_id')
+            ->join('classes as c', 'c.id', '=', 'r.class_id')
+            ->leftJoin('grade_bands as gb', 'gb.id', '=', 'r.mean_grade_band_id')
+            ->where('r.school_id', $this->schoolId)
+            ->where('c.school_id', $this->schoolId)
+            ->where('r.exam_id', $examId)
+            ->where('c.grade_id', $gradeId)
+            ->whereNull('r.deleted_at')
+            ->whereNull('st.deleted_at')
+            ->orderByRaw('r.grade_position IS NULL')
+            ->orderBy('r.grade_position')
+            ->orderByDesc('r.total_marks')
+            ->orderBy('st.full_name')
+            ->get([
+                'r.student_id',
+                'r.class_id',
+                'c.name as class_name',
+                'r.total_marks',
+                'r.mean_marks',
+                'r.grade_position',
+                'r.stream_position',
+                'r.grade_cohort_size',
+                'r.is_complete',
+                'st.full_name',
+                'st.admission_no',
+                'gb.abbreviation as mean_band',
+            ]);
+    }
+
+    /**
+     * Derived subject scores for every student in a grade.
+     *
+     * @return Collection<int, object>
+     */
+    public function gradeScores(int $examId, int $gradeId): Collection
+    {
+        return DB::table('exam_subject_scores as sc')
+            ->join('classes as c', 'c.id', '=', 'sc.class_id')
+            ->leftJoin('grade_bands as gb', 'gb.id', '=', 'sc.grade_band_id')
+            ->where('sc.school_id', $this->schoolId)
+            ->where('c.school_id', $this->schoolId)
+            ->where('sc.exam_id', $examId)
+            ->where('c.grade_id', $gradeId)
+            ->where('sc.is_derived', true)
+            ->whereNull('sc.subject_paper_id')
+            ->get([
+                'sc.student_id',
+                'sc.level_subject_id',
+                'sc.scaled_score',
+                'sc.is_absent',
+                'gb.abbreviation as band',
+            ]);
+    }
 }

@@ -39,6 +39,16 @@ class ExamResource extends JsonResource
                 'name' => $this->term->name,
                 'term_number' => $this->term->term_number,
             ] : null),
+            'classes' => $this->whenLoaded('classes', fn () => $this->classes
+                ->sortBy('name')
+                ->map(fn ($class) => [
+                    'id' => $class->id,
+                    'name' => $class->name,
+                    'grade_id' => $class->grade_id,
+                    'stream_id' => $class->stream_id,
+                ])
+                ->values()
+                ->all()),
             'level' => $this->whenLoaded('level', fn () => $this->level ? [
                 'id' => $this->level->id,
                 'code' => $this->level->code,

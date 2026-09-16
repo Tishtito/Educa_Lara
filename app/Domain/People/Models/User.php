@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -19,7 +20,9 @@ use Laravel\Sanctum\HasApiTokens;
  *
  * Deliberately NOT using BelongsToSchool: a platform superadmin has a NULL
  * school_id, and authentication must be able to find a user before a tenant is
- * resolved. Tenant enforcement for users happens in policies and in
+ * resolved — sign-in is (username or email, password) with no school code, so
+ * the lookup crosses tenants by design. username and email are unique
+ * platform-wide (2026_09_16_000100). Tenant enforcement for users happens in policies and in
  * ResolveTenant, which asserts the authenticated user's school matches the
  * resolved tenant.
  */
@@ -45,16 +48,6 @@ class User extends Authenticatable
         ];
     }
 
-    protected static function booted(): void
-    {
-        // school_key = COALESCE(school_id, 0). Backs the unique indexes so that
-        // platform users (NULL school_id) still get username uniqueness, without
-        // relying on generated columns or partial indexes.
-        static::saving(function (User $user): void {
-            $user->school_key = $user->school_id ?? 0;
-        });
-    }
-
     public function school(): BelongsTo
     {
         return $this->belongsTo(School::class);
@@ -73,6 +66,22 @@ class User extends Authenticatable
     public function examinerAssignments(): HasMany
     {
         return $this->hasMany(ExaminerAssignment::class);
+    }
+
+    public function accountTokens(): HasMany
+    {
+        return $this->hasMany(AccountToken::class);
+    }
+
+    /** The invitation email waiting to be used, if any (AccountLinks revokes older ones). */
+    public function pendingInvitation(): HasOne
+    {
+        // The constraints go inside ofMany: outside it, the newest token of ANY
+        // kind would be picked first and then filtered away.
+        return $this->hasOne(AccountToken::class)->ofMany(['id' => 'max'], fn ($query) => $query
+            ->where('purpose', AccountToken::INVITATION)
+            ->whereNull('used_at')
+            ->whereNull('revoked_at'));
     }
 
     public function preferences(): HasMany

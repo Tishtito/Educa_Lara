@@ -118,8 +118,19 @@ class ExamLifecycleService
 
         $levelSubjectIds = ExamSubject::query()->where('exam_id', $exam->id)->pluck('level_subject_id')->unique();
 
+        // Only for subjects the exam has chosen NO papers for: a school that
+        // left a paper out of this exam must not get it back on opening.
+        $configured = ExamSubjectPaper::query()
+            ->where('exam_id', $exam->id)
+            ->whereNull('class_id')
+            ->with('subjectPaper')
+            ->get()
+            ->map(fn (ExamSubjectPaper $row) => (int) $row->subjectPaper?->level_subject_id)
+            ->filter()
+            ->unique();
+
         $papers = LevelSubject::query()
-            ->whereIn('id', $levelSubjectIds)
+            ->whereIn('id', $levelSubjectIds->diff($configured))
             ->with('papers')
             ->get()
             ->flatMap(fn (LevelSubject $ls) => $ls->papers);

@@ -12,8 +12,10 @@ use App\Domain\Examination\Exceptions\ExamNotComputable;
 use App\Domain\Examination\Models\Exam;
 use App\Domain\Examination\Models\ExamStatistic;
 use App\Domain\Examination\Models\ExamStudentResult;
+use App\Domain\Examination\Models\ExamSubjectPaper;
 use App\Domain\Examination\Models\ExamSubjectScore;
 use App\Domain\Examination\Services\ExamComputationService;
+use App\Domain\People\Models\Role;
 use App\Domain\People\Models\User;
 use App\Domain\Tenancy\Models\School;
 use Database\Seeders\DemoSchoolSeeder;
@@ -119,6 +121,30 @@ class ExamComputationTest extends TestCase
         $this->assertEquals(70.00, (float) $this->derived($enrolmentId, 'ENG')->scaled_score);
         $this->assertEquals(65.00, (float) $this->derived($enrolmentId, 'KIS')->scaled_score);
         $this->assertEquals(67.00, (float) $this->derived($enrolmentId, 'MAT')->scaled_score);
+    }
+
+    /**
+     * The papers a subject has are the exam's choice, not the curriculum's: a
+     * Mid-Term may set one English paper where the End-Term sets two. Before
+     * this, computation read the subject's whole catalogue and left the subject
+     * pending forever when an exam had not set one of its papers.
+     */
+    public function test_a_subject_is_scored_on_the_papers_this_exam_sets(): void
+    {
+        $enrolmentId = $this->anyEnrolmentId();
+        $grammar = $this->subject('ENG')->papers->firstWhere('sequence', 2);
+
+        // This exam sets Reading (50) only: drop Grammar and its marks.
+        ExamSubjectPaper::query()->where('exam_id', $this->exam->id)->where('subject_paper_id', $grammar->id)->delete();
+        ExamSubjectScore::query()->where('exam_id', $this->exam->id)->where('subject_paper_id', $grammar->id)->delete();
+
+        $this->entered($enrolmentId, 'ENG', 1)->update(['raw_score' => 30]);
+
+        $report = $this->compute();
+
+        // 30 of 50, on the subject's 100 scale — Grammar neither counts nor blocks.
+        $this->assertEquals(60.00, (float) $this->derived($enrolmentId, 'ENG')->scaled_score);
+        $this->assertSame([], $report->warnings);
     }
 
     public function test_every_present_score_gets_a_band_and_a_position(): void
@@ -362,7 +388,12 @@ class ExamComputationTest extends TestCase
 
     public function test_another_schools_admin_cannot_compute_this_exam(): void
     {
-        $theirAdmin = User::query()->where('school_id', $this->other->id)->where('username', 'admin')->firstOrFail();
+        // By role, not by name: usernames are unique platform-wide, so the
+        // second demo school's administrator is not called "admin".
+        $theirAdmin = User::query()
+            ->where('school_id', $this->other->id)
+            ->whereHas('roles', fn ($q) => $q->where('slug', Role::SCHOOL_ADMIN))
+            ->firstOrFail();
         $this->forgetTenant();
 
         $this->actingAs($theirAdmin, 'sanctum')->postJson("/api/exams/{$this->exam->id}/compute")->assertStatus(404);

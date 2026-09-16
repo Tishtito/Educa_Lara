@@ -58,11 +58,13 @@ each have an admission number `ADM-001`.
 | Auth | `User` | nullable; NULL = platform superadmin | no — see below |
 
 `User` is deliberately not scoped: authentication has to find the user *before* a
-tenant exists, and a superadmin belongs to no tenant. Its uniqueness comes from
-`school_key` (= `COALESCE(school_id, 0)`, maintained by a model hook) and the
-`unique(['school_key', 'username'])` index. The tenant check for users is done
-by `ResolveTenant`, which 403s when the hostname's school and the user's school
-disagree.
+tenant exists, and a superadmin belongs to no tenant. `username` and `email` are
+unique **platform-wide** (2026_09_16_000100), because sign-in is
+(username-or-email, password) with no school code — the account names its own
+school. Until then uniqueness was per school, through a `school_key` column
+(= `COALESCE(school_id, 0)`) that the same migration dropped. The tenant check
+for users is done by `ResolveTenant`, which 403s when the hostname's school and
+the user's school disagree.
 
 ### Enforcement
 
@@ -122,16 +124,31 @@ pins it.
 ## 3. Authentication and authorization
 
 - **Sanctum bearer tokens.** `POST /api/auth/login` returns a plain-text token.
-- **Credentials are `(school, username, password)`**, not `(username, password)`
-  — `username` only identifies a person within one school. The school may be
-  given explicitly (slug or uuid) or derived from the hostname.
+- **Credentials are `(identity, password)`**, where identity is the username or
+  the email address, matched case-insensitively. No school code: both columns are
+  unique platform-wide, so one account can be found from what the person typed.
+  Legacy needed a school (one database each), and the first version of this API
+  carried that over; `ResolveTenant` still resolves the tenant afterwards, from
+  the user's own `school_id` (or the hostname, or `X-School` for superadmins).
+- Two accounts can no longer share a username, so the administrator screens and
+  the legacy importer check it platform-wide; the importer suffixes a clashing
+  name with the school's code (`admin` -> `admin.riverside`) and says so in its
+  report.
 - Unknown user and wrong password return the **same** 422, so the endpoint
-  cannot be used to enumerate usernames. Login is rate-limited (`throttle:6,1`).
+  cannot be used to enumerate usernames. Each auth route is rate-limited under
+  its own counter (`throttle:6,1,login`) — unnamed throttles share one counter
+  per IP, which let a few sign-in attempts use up the forgot-password
+  allowance.
 - **Self-service registration is not carried over.** Legacy exposed an open
   `POST /signup/register` on all three portals of every deployment: anyone could
   create an admin account. Users are created by a school admin.
 - Roles are `super_admin`, `school_admin`, `class_teacher`, `examiner`, gated by
   `EnsureUserHasRole` (alias `role`). A `super_admin` passes every check.
+- **Forced password change.** Users with `must_change_password` (every account
+  imported from legacy) get 403 `{password_change_required: true}` from every
+  route behind `password.changed` (`EnsurePasswordChanged`) until they call
+  `POST /api/auth/password`. `auth/me`, `auth/logout` and `auth/password` stay
+  reachable. Changing the password revokes the user's other tokens.
 
 ---
 
@@ -242,6 +259,26 @@ Rules, and the legacy behaviour each settles:
 `DemoSchoolSeeder` enters only paper marks and then runs the real pipeline, so
 the rows the marklist reads come from the same code a school uses.
 
+### Which papers an exam sets
+
+`subject_papers` is the **catalogue** of papers a subject can have; an exam's
+own `exam_subject_papers` rows say which of them it actually sets, and out of
+how many marks. That is what lets a Mid-Term set one English paper where the
+End-Term sets two, without inventing a second subject — schools' paper counts
+change per exam type, and before this the curriculum count applied to every
+exam forever.
+
+`App\Domain\Examination\ExamPapers` is the single answer to "what are this
+exam's papers": the exam's rows for a subject, or, when it has none, the whole
+catalogue — so exams configured before this, and any exam left on defaults,
+behave exactly as they did. Marking, computation, report cards and the
+marks-out-of editor all read it, so the sheet, the score and the card cannot
+disagree.
+
+The combination rule stays on the subject (`aggregation_rule`). `ExamSetupService`
+refuses a selection the rule cannot serve: a `single` subject may keep several
+catalogue papers as alternatives, but an exam sets exactly one of them.
+
 ### Exam lifecycle
 
 `draft <-> open -> marking <-> locked -> published -> archived`, moved only by
@@ -250,7 +287,8 @@ Legacy `ExamsController::update` set any status on any exam.
 
 - **→ open**: the exam must cover at least one class. If no subjects were chosen
   it takes every active subject at its classes' levels, each paper at its
-  curriculum default marks-out-of. A hand-made selection is left alone.
+  curriculum default marks-out-of. A hand-made selection is left alone —
+  including a subject the school deliberately gave fewer papers.
 - **→ locked**: results are computed synchronously.
 - **→ published**: stamps `published_at`. Nothing leaves `published` except
   `archived`; correcting published results is a data fix, not a button.
@@ -431,6 +469,35 @@ hundredth from 0.00 to 100.00 resolves.
   mutated it. The new endpoint is strictly read-only
   (`MarklistApiTest::test_reading_a_marklist_does_not_write_to_it`).
 
+### Importing legacy schools
+
+Runbook: `docs/legacy-import.md`. The design choices that are not visible from
+the commands:
+
+- **Gate on raw marks, report on derived values.** Profiling the production
+  databases showed legacy totals double-counted strands, most stored positions
+  were stale, and stored combined English disagreed with its papers in dozens of
+  rows. So `legacy:verify` requires every non-null mark *cell* to arrive exactly
+  (or be accounted for), and the pipeline recomputes everything derived.
+  Legacy's own totals and positions ride along in `legacy_*` columns for the
+  comparison report.
+- **Placement from the exam's year, not the stored link.** Production results
+  of 2026 exams point at the pupil's 2025 `student_classes` row — the
+  cross-year bug above, live. The importer ignores `student_class_id` except to
+  break ties.
+- **Curriculum is chosen per exam and class from the data**
+  (`Profiles/`, `SubjectVariant`): a lower-classes exam in early 2026 has some
+  classes marked on Reading + Grammar and others on a single English mark.
+  Curriculum versions are `level_subjects` rows distinguished by
+  `effective_from_year_id` and `paper_count`.
+- **Questions, not guesses.** `DecisionBook` stores a checksum of each question;
+  if legacy changes so the question changes, the old answer is not reused.
+  Questions and quarantine are written after the import transaction, so a dry
+  run or a refused run still leaves them for the school.
+- **Legacy password hashes are written with the query builder.** The `hashed`
+  cast refuses a bcrypt hash whose cost differs from `BCRYPT_ROUNDS`, and legacy
+  hashes are cost 10.
+
 ---
 
 ## 7. Layout
@@ -445,6 +512,9 @@ app/Domain/
   People/       User, Role, Student, StudentEnrolment, assignments, UserPreference
   Tenancy/      School, SchoolDomain, SchoolSetting, TenantManager, TenantScope,
                 BelongsToSchool
+  LegacyImport/ LegacyImporter + Steps/, Profiles/ (per-section curriculum),
+                Mapping/ (MigrationMap, class and name parsing), Review/
+                (DecisionBook), Verification/, Repositories/ (legacy reads)
 app/Http/       Controllers/Api, Middleware, Requests, Resources
 ```
 
@@ -485,13 +555,19 @@ student).
 | Exam lifecycle, mark entry, marks-out-of, selected exam, queued recompute | done, tested |
 | Queue operations: dedicated workers, stale-results self-healing, heartbeats, `/up`, ops email, Supervisor + cron config | done, tested, run under real Supervisor |
 | Report cards: single + term layouts, typed remarks / fee balance / term dates, PDF (one student, queued class batch), publication snapshots | done, tested; follows the lower-classes `Dev` layout as of 2026-09-13 — later legacy changes must be carried over |
-| Legacy ETL + `legacy:verify` | not started |
-| Analytics (MSS, stream lists) | not started |
+| Legacy import: `legacy:import` / `legacy:review` / `legacy:verify`, forced password change | done, tested on a synthetic fixture of every measured production quirk; runbook `docs/legacy-import.md` |
+| Admin API for the React admin app (`../Educa_Admin`): CORS for the PWA and Capacitor origins, lookup lists (levels, grades, years, streams, classes), platform school list | done, tested |
+| School set-up API: academic years + terms (create, current, delete-if-unused), streams, classes; subjects, level subjects + papers (the catalogue; existing papers and the combination rule frozen once examined, adding a paper stays open because each exam names its own); grading scales + bands (contiguous 0-100, platform scales read-only, bands on published results immutable, live exams recomputed via `ResultsInvalidation`); exam edit (structure draft-only, name/dates until published), delete untouched drafts, choose subjects | done, tested |
+| People API: staff accounts (temporary passwords, forced change, last-admin guard), class teacher and examiner assignments (copy between years, inferred legacy grants confirmed on save), pupils (admission, move, status, results history, delete-if-unrecorded), CSV import (all-or-nothing, dry run), year-end promotion (dry run on the same code path, never re-places a pupil) | done, tested |
+| Analytics (read-only): grade-wide stream list, exam statistics (MSS by class/grade/level/school, subject means), dashboard with set-up gaps; school profile + logo upload (feeds report card PDFs); platform school provisioning and suspension | done, tested |
+| Staff portal API for `../Educa_Portal`: my assignments, my exams with marking progress (`MarkingOverview`, shared with the marking tab), class-teacher pupils (roster, admit into own class, move out, profile and results of pupils taught — `ClassTeachingAccess`); mark list now limited to the class teacher's own classes and to classes in the exam | done, tested |
+| Email: `EducaMail` base (queued after commit, school-branded sender, reply-to school, delivery log, encrypted secrets), `mail:test`; staff invitations by email (resend/cancel, first admin of a new school), forgot-password links, password-changed notices — `docs/email.md` | done, tested |
 | SMS | not started — legacy only ever appended to `logs/sms.log`; no gateway existed |
 | Fees, attendance, timetable, parent/student portals | absent from legacy; new build, not conversion |
 
-Remaining conversion work, in the order it unblocks the most: the legacy ETL
-(real schools' data), then analytics (MSS, stream lists), then SMS.
+Remaining conversion work, in the order it unblocks the most: the first real
+school's import and cutover, then SMS. The admin app is `../Educa_Admin`; the
+staff portal for class teachers and examiners is `../Educa_Portal`.
 
 ---
 

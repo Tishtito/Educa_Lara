@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Domain\Messaging\EmailLogger;
 use App\Domain\Tenancy\TenantManager;
 use App\Notifications\QueueJobFailed;
 use App\Operations\OpsAlerts;
 use App\Operations\QueueHealth;
 use Illuminate\Foundation\Events\DiagnosingHealth;
+use Illuminate\Notifications\Events\NotificationSent;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Queue\Events\Looping;
 use Illuminate\Support\Facades\Event;
@@ -48,7 +50,11 @@ class AppServiceProvider extends ServiceProvider
 
         Queue::failing(function (JobFailed $event): void {
             $this->alertOnFailure($event);
+            $this->app->make(EmailLogger::class)->jobFailed($event);
         });
+
+        // Delivery log for people-facing email (App\Notifications\EducaMail).
+        Event::listen(NotificationSent::class, fn (NotificationSent $event) => $this->app->make(EmailLogger::class)->sent($event));
 
         // GET /up: an uptime monitor's view of whether the queue is serving the
         // app. Throwing here makes Laravel answer 500; with debug off the body

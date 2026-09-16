@@ -144,6 +144,30 @@ class MarklistApiTest extends TestCase
         $this->marklist($teacher)->assertOk();
     }
 
+    public function test_a_class_teacher_may_not_read_another_classes_marklist(): void
+    {
+        $this->actingForSchool($this->school);
+        $teacher = User::query()->where('username', 'teacher')->firstOrFail();
+        $other = SchoolClass::factory()->create([
+            'school_id' => $this->school->id,
+            'grade_id' => $this->class->grade_id,
+            'name' => 'Grade 5 Red',
+        ]);
+        $this->exam->classes()->attach($other->id, ['school_id' => $this->school->id]);
+        $this->forgetTenant();
+
+        $this->marklist($teacher, $other->id)->assertStatus(403);
+    }
+
+    public function test_a_class_outside_the_exam_is_rejected(): void
+    {
+        $this->actingForSchool($this->school);
+        $other = SchoolClass::factory()->create(['school_id' => $this->school->id, 'grade_id' => $this->class->grade_id, 'name' => 'Grade 5 Red']);
+        $this->forgetTenant();
+
+        $this->marklist(null, $other->id)->assertStatus(422)->assertJsonValidationErrors('class_id');
+    }
+
     public function test_an_examiner_may_not_read_a_marklist(): void
     {
         $this->actingForSchool($this->school);

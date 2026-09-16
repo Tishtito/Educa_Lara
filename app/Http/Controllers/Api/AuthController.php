@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api;
 
+use App\Domain\People\Models\AccountToken;
 use App\Domain\People\Models\User;
-use App\Domain\Tenancy\Models\School;
-use App\Domain\Tenancy\Models\SchoolDomain;
+use App\Domain\People\Services\AccountLinks;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Auth\ChangePasswordRequest;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Resources\UserResource;
+use App\Notifications\Account\PasswordChanged;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -22,41 +24,31 @@ use Illuminate\Validation\ValidationException;
  *
  * The legacy open POST /signup/register endpoints are deliberately not carried
  * over — anyone could create an admin account on any deployment. Users are
- * created by a school admin.
+ * created by a school admin, or invited by email (AccountLinks).
  */
 class AuthController extends Controller
 {
+    public function __construct(private readonly AccountLinks $links) {}
+
     /**
-     * Credentials are (school, username, password), not (username, password):
-     * users is unique on (school_key, username), so a username identifies a
-     * person only within one school.
+     * Credentials are (identity, password), where identity is the username or
+     * the email address. Both are unique platform-wide, so the account names
+     * its own school and nobody types a school code.
      */
     public function login(LoginRequest $request): JsonResponse
     {
         $data = $request->validated();
-        $requestedKey = $data['school'] ?? null;
-        $school = $this->resolveSchool($request, $requestedKey);
-
-        // A school was named but does not exist. Without this, the lookup would
-        // fall through to school_key 0 and quietly attempt the request against
-        // the platform namespace where superadmins live.
-        if ($requestedKey !== null && $requestedKey !== '' && $school === null) {
-            throw ValidationException::withMessages([
-                'school' => ['No school matches that identifier.'],
-            ]);
-        }
 
         $user = User::query()
-            ->where('username', $data['username'])
-            ->where('school_key', $school?->getKey() ?? 0)
+            ->where(fn ($query) => $query->where('username', $data['identity'])->orWhere('email', $data['identity']))
             ->with(['roles', 'school'])
             ->first();
 
         // One message and one code for "no such user" and "wrong password", so
-        // the endpoint cannot be used to enumerate usernames.
+        // the endpoint cannot be used to find out who has an account.
         if ($user === null || ! Hash::check($data['password'], $user->password)) {
             throw ValidationException::withMessages([
-                'username' => ['These credentials do not match our records.'],
+                'identity' => ['These credentials do not match our records.'],
             ]);
         }
 
@@ -98,6 +90,34 @@ class AuthController extends Controller
         ]);
     }
 
+    /**
+     * POST /api/auth/password — set a new password. Required before anything else
+     * for users flagged must_change_password (legacy imports). Other sessions are
+     * signed out: whoever else knew the old password should not stay signed in.
+     */
+    public function changePassword(ChangePasswordRequest $request): JsonResponse
+    {
+        $user = $request->user();
+        // The forced change after an administrator's reset or a legacy import is
+        // not news to anyone: the reset already sent a notice.
+        $wasForced = $user->must_change_password;
+
+        $user->forceFill([
+            'password' => $request->validated('password'),
+            'must_change_password' => false,
+        ])->save();
+
+        $current = $user->currentAccessToken();
+        $user->tokens()->when($current?->id, fn ($q, $id) => $q->whereKeyNot($id))->delete();
+        $this->links->revoke($user, AccountToken::PASSWORD_RESET);
+
+        if (! $wasForced) {
+            $this->links->notifyPasswordChanged($user, PasswordChanged::SELF);
+        }
+
+        return response()->json(['success' => true, 'message' => 'Password changed.']);
+    }
+
     public function me(Request $request): JsonResponse
     {
         $user = $request->user()->load(['roles', 'school']);
@@ -106,25 +126,5 @@ class AuthController extends Controller
             'success' => true,
             'data' => new UserResource($user),
         ]);
-    }
-
-    /**
-     * The school a login attempt belongs to: an explicit slug/uuid if given,
-     * otherwise the school that has claimed this hostname. Null means the
-     * platform tenant (school_key 0), where superadmins live.
-     */
-    private function resolveSchool(Request $request, ?string $key): ?School
-    {
-        if ($key !== null && $key !== '') {
-            return School::query()
-                ->where('slug', $key)
-                ->orWhere('uuid', $key)
-                ->first();
-        }
-
-        return SchoolDomain::query()
-            ->where('hostname', $request->getHost())
-            ->with('school')
-            ->first()?->school;
     }
 }

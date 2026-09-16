@@ -8,6 +8,7 @@ use App\Domain\Academics\Models\SchoolClass;
 use App\Domain\Curriculum\Models\LevelSubject;
 use App\Domain\Examination\Data\ComputationReport;
 use App\Domain\Examination\Data\PaperScore;
+use App\Domain\Examination\ExamPapers;
 use App\Domain\Examination\Exceptions\ExamNotComputable;
 use App\Domain\Examination\Models\Exam;
 use App\Domain\Examination\Models\ExamStatistic;
@@ -45,6 +46,7 @@ class ExamComputationService
 
     public function __construct(
         private readonly AggregationService $aggregation,
+        private readonly ExamPapers $papers,
         private readonly RankingService $ranking,
         private readonly StatisticsService $statistics,
         private readonly TenantManager $tenancy,
@@ -96,6 +98,11 @@ class ExamComputationService
             ->with('levelSubject.papers')
             ->get();
 
+        // The papers THIS exam sets, which may be a subset of the subject's
+        // catalogue: a Mid-Term may set one English paper where the End-Term
+        // sets two.
+        $examPapers = $this->papers->forExam($exam);
+
         $paperScales = ExamSubjectPaper::query()
             ->where('exam_id', $exam->id)
             ->get(['subject_paper_id', 'class_id', 'grading_scale_id']);
@@ -128,8 +135,10 @@ class ExamComputationService
                     $expected++;
                 }
 
-                if ($levelSubject->papers->isEmpty()) {
-                    $report->warnings[] = "{$levelSubject->subject?->name} (level subject {$levelSubject->id}) has no papers configured.";
+                $subjectPapers = $examPapers->get($levelSubject->id) ?? collect();
+
+                if ($subjectPapers->isEmpty()) {
+                    $report->warnings[] = "{$levelSubject->subject?->name} (level subject {$levelSubject->id}) has no papers in this exam.";
                     $allEntered = false;
 
                     continue;
@@ -137,7 +146,7 @@ class ExamComputationService
 
                 $papers = [];
 
-                foreach ($levelSubject->papers as $paper) {
+                foreach ($subjectPapers as $paper) {
                     $row = $byPaper->get($levelSubject->id.':'.$paper->id);
 
                     if ($row === null) {

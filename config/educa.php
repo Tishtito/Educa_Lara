@@ -4,6 +4,34 @@ declare(strict_types=1);
 
 return [
 
+    // Outbound email for people (invitations, password links, notices). SMTP
+    // settings live in config/mail.php / MAIL_*; docs/email.md covers set-up.
+    'mail' => [
+        // Mail goes out from one platform address (MAIL_FROM_ADDRESS) under the
+        // school's name, so one sending domain's SPF/DKIM covers every school.
+        'from_name_format' => env('MAIL_FROM_NAME_FORMAT', '{school} via Educa'),
+
+        // Replies reach the school office rather than an unattended mailbox.
+        'reply_to_school' => (bool) env('MAIL_REPLY_TO_SCHOOL', true),
+
+        // Delivery log rows (never bodies or links) are kept this long.
+        'log_retention_days' => (int) env('MAIL_LOG_RETENTION_DAYS', 180),
+    ],
+
+    // Where links in emails point. Admins land in Educa Admin, other staff in
+    // the staff portal.
+    'apps' => [
+        'admin_url' => rtrim((string) env('EDUCA_ADMIN_URL', 'http://localhost:5173'), '/'),
+        'portal_url' => rtrim((string) env('EDUCA_PORTAL_URL', 'http://localhost:5174'), '/'),
+    ],
+
+    'accounts' => [
+        'invitation_ttl_hours' => (int) env('INVITATION_TTL_HOURS', 168),
+        'reset_ttl_minutes' => (int) env('PASSWORD_RESET_TTL_MINUTES', 60),
+        // Minimum gap between two links of the same kind for one account.
+        'resend_cooldown_seconds' => (int) env('ACCOUNT_LINK_COOLDOWN_SECONDS', 60),
+    ],
+
     'ops' => [
         // Where queue incidents, recoveries and failed jobs are mailed. Unset =
         // alerts are only logged.

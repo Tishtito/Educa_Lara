@@ -1,6 +1,9 @@
 <?php
 
+use App\Domain\Academics\Exceptions\SetupConflict;
 use App\Domain\Examination\Exceptions\ExaminationRuleViolation;
+use App\Domain\People\Exceptions\AccountLinkUnavailable;
+use App\Http\Middleware\EnsurePasswordChanged;
 use App\Http\Middleware\EnsureUserHasRole;
 use App\Http\Middleware\ResolveTenant;
 use Illuminate\Foundation\Application;
@@ -26,6 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'tenant' => ResolveTenant::class,
             'role' => EnsureUserHasRole::class,
+            'password.changed' => EnsurePasswordChanged::class,
         ]);
 
         // ...and it must ALSO run before route model binding. SubstituteBindings
@@ -49,6 +53,20 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->render(function (ExaminationRuleViolation $e, Request $request) {
             if ($request->is('api/*')) {
                 return response()->json(['success' => false, 'message' => $e->getMessage()], $e->status());
+            }
+        });
+
+        // School set-up changes refused because records already depend on them.
+        $exceptions->render(function (SetupConflict $e, Request $request) {
+            if ($request->is('api/*')) {
+                return response()->json(['success' => false, 'message' => $e->getMessage()], 409);
+            }
+        });
+
+        // Invitation and password-reset links that are invalid, used or expired.
+        $exceptions->render(function (AccountLinkUnavailable $e, Request $request) {
+            if ($request->is('api/*')) {
+                return response()->json(['success' => false, 'message' => $e->getMessage(), 'reason' => $e->reason], 410);
             }
         });
     })->create();
