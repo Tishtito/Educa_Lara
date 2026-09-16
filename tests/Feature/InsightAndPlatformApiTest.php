@@ -195,6 +195,9 @@ class InsightAndPlatformApiTest extends TestCase
         $this->assertTrue($admin->hasRole(Role::SCHOOL_ADMIN));
         $this->assertSame(3, AcademicYear::query()->acrossTenants()->where('school_id', $school->id)->where('is_current', true)->firstOrFail()->terms()->withoutGlobalScopes()->count());
 
+        // It starts with the default subjects at every level (DefaultCurriculum).
+        $this->assertSame(23, LevelSubject::query()->withoutGlobalScopes()->where('school_id', $school->id)->count());
+
         $this->postJson('/api/platform/schools', ['name' => 'Hilltop Academy', 'admin' => ['name' => 'X', 'username' => 'xyz']])
             ->assertStatus(422)
             ->assertJsonValidationErrors('slug');

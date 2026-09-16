@@ -63,6 +63,99 @@ class CurriculumApiTest extends TestCase
         return SubjectPaper::query()->withoutGlobalScopes()->where('level_subject_id', $levelSubject->id)->orderBy('sequence')->get();
     }
 
+    // ------------------------------------------------------ default subjects
+
+    /** level code => subject code => [rule, [[paper, out of], ...]] as stored, read past the tenant scope. */
+    private function offered(School $school): array
+    {
+        $levels = Level::query()->pluck('code', 'id');
+
+        return LevelSubject::query()->withoutGlobalScopes()
+            ->where('school_id', $school->id)
+            ->with(['subject' => fn ($q) => $q->withoutGlobalScopes(), 'papers' => fn ($q) => $q->withoutGlobalScopes()])
+            ->orderBy('display_order')
+            ->get()
+            ->groupBy(fn (LevelSubject $ls) => $levels[$ls->level_id])
+            ->map(fn ($subjects) => $subjects->mapWithKeys(fn (LevelSubject $ls) => [$ls->subject->code => [
+                $ls->aggregation_rule->value,
+                $ls->papers->map(fn (SubjectPaper $p) => [$p->name, (int) $p->default_max_marks])->all(),
+            ]])->all())
+            ->all();
+    }
+
+    public function test_default_subjects_give_each_level_its_cbc_list(): void
+    {
+        $this->actingAs($this->admin, 'sanctum')
+            ->postJson('/api/level-subjects/defaults')
+            ->assertOk()
+            ->assertJsonPath('data.level_subjects_added', 23)
+            ->assertJsonPath('data.subjects_added', 12);
+
+        $offered = $this->offered($this->school);
+        $one = ['single', [['Paper 1', 100]]];
+
+        $this->assertSame([
+            'MAT' => $one,
+            'ENG' => ['percentage_of_combined_max', [['Reading', 50], ['Grammar', 50]]],
+            'KIS' => ['percentage_of_combined_max', [['Kusoma', 50], ['Lugha', 50]]],
+            'ENV' => $one, 'CRA' => $one, 'CRE' => $one,
+        ], $offered[Level::LOWER_PRIMARY]);
+
+        $this->assertSame(['MAT', 'ENG', 'KIS', 'SCT', 'SST', 'AGN', 'CRA', 'CRE'], array_keys($offered[Level::UPPER_PRIMARY]));
+        $this->assertSame($one, $offered[Level::UPPER_PRIMARY]['ENG']);
+
+        $this->assertSame(['ENG', 'MAT', 'KIS', 'CRA', 'PTS', 'AGR', 'SST', 'ISC', 'CRE'], array_keys($offered[Level::JUNIOR_SECONDARY]));
+        $this->assertSame(['percentage_of_combined_max', [['Paper 1', 50], ['Paper 2', 50]]], $offered[Level::JUNIOR_SECONDARY]['KIS']);
+
+        // One catalogue subject per code, shared by the levels that teach it.
+        $this->assertSame('Christian Religious Education', Subject::query()->withoutGlobalScopes()->where('school_id', $this->school->id)->where('code', 'CRE')->sole()->name);
+    }
+
+    public function test_applying_the_defaults_again_adds_nothing(): void
+    {
+        $this->actingAs($this->admin, 'sanctum')->postJson('/api/level-subjects/defaults')->assertOk();
+
+        $this->postJson('/api/level-subjects/defaults')
+            ->assertOk()
+            ->assertJsonPath('data.level_subjects_added', 0)
+            ->assertJsonPath('data.subjects_added', 0);
+    }
+
+    public function test_a_schools_own_set_up_is_never_changed(): void
+    {
+        // English at upper primary already set up by the school, with two papers.
+        $english = $this->english();
+        $before = $this->papersOf($english)->pluck('name')->all();
+        // A subject with the default's name under another code is reused, not duplicated.
+        $maths = $this->subject(['code' => 'MATHS', 'name' => 'Mathematics']);
+
+        $this->actingAs($this->admin, 'sanctum')->postJson('/api/level-subjects/defaults')->assertOk();
+
+        $this->assertSame($before, $this->papersOf($english->fresh())->pluck('name')->all());
+        $this->assertSame(1, LevelSubject::query()->withoutGlobalScopes()->where('level_id', $this->upper->id)->where('subject_id', $english->subject_id)->count());
+        $this->assertSame(1, Subject::query()->withoutGlobalScopes()->where('school_id', $this->school->id)->where('name', 'Mathematics')->count());
+        $this->assertTrue(LevelSubject::query()->withoutGlobalScopes()->where('level_id', $this->upper->id)->where('subject_id', $maths->id)->exists());
+    }
+
+    public function test_defaults_land_in_the_callers_school_and_need_an_administrator(): void
+    {
+        $other = School::factory()->create();
+        $teacher = User::factory()->withRole(Role::CLASS_TEACHER)->create(['school_id' => $this->school->id]);
+
+        $this->actingAs($teacher, 'sanctum')->postJson('/api/level-subjects/defaults')->assertForbidden();
+        $this->actingAs($this->admin, 'sanctum')->postJson('/api/level-subjects/defaults')->assertOk();
+
+        $this->assertSame([], $this->offered($other));
+    }
+
+    public function test_the_console_command_applies_the_defaults(): void
+    {
+        $this->artisan('curriculum:defaults', ['school' => $this->school->slug])->assertSuccessful();
+        $this->assertCount(3, $this->offered($this->school));
+
+        $this->artisan('curriculum:defaults', ['school' => 'no-such-school'])->assertFailed();
+    }
+
     // ----------------------------------------------------------- subjects
 
     public function test_a_subject_is_created_with_an_uppercase_code(): void

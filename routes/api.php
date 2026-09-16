@@ -160,6 +160,7 @@ Route::middleware(['auth:sanctum', 'tenant', 'password.changed'])->group(functio
         Route::delete('subjects/{subject}', [SubjectController::class, 'destroy']);
         Route::get('level-subjects', [LevelSubjectController::class, 'index']);
         Route::post('level-subjects', [LevelSubjectController::class, 'store']);
+        Route::post('level-subjects/defaults', [LevelSubjectController::class, 'applyDefaults']);
         Route::patch('level-subjects/{levelSubject}', [LevelSubjectController::class, 'update']);
         Route::delete('level-subjects/{levelSubject}', [LevelSubjectController::class, 'destroy']);
         Route::get('grading-scales', [GradingScaleController::class, 'index']);

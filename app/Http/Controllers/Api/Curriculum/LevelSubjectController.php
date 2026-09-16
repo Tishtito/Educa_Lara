@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\Curriculum;
 
+use App\Domain\Curriculum\DefaultCurriculum;
 use App\Domain\Curriculum\Models\LevelSubject;
 use App\Domain\Curriculum\Services\CurriculumService;
 use App\Domain\Tenancy\TenantManager;
@@ -41,6 +42,23 @@ class LevelSubjectController extends Controller
         $levelSubject->setAttribute('in_use', false);
 
         return response()->json(['success' => true, 'data' => new LevelSubjectResource($levelSubject)], 201);
+    }
+
+    /**
+     * POST /level-subjects/defaults — add the standard CBC subjects for each
+     * level that the school does not offer yet. Nothing already set up changes.
+     */
+    public function applyDefaults(DefaultCurriculum $defaults, TenantManager $tenancy): JsonResponse
+    {
+        $added = $defaults->apply($tenancy->currentOrFail());
+
+        return response()->json([
+            'success' => true,
+            'message' => $added['level_subjects_added'] === 0
+                ? 'Every default subject is already set up.'
+                : "Added {$added['level_subjects_added']} subjects across the levels.",
+            'data' => $added,
+        ]);
     }
 
     public function update(LevelSubjectRequest $request, LevelSubject $levelSubject): JsonResponse

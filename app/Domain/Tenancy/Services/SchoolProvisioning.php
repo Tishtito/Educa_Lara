@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Tenancy\Services;
 
 use App\Domain\Academics\Services\AcademicCalendar;
+use App\Domain\Curriculum\DefaultCurriculum;
 use App\Domain\People\Models\Role;
 use App\Domain\People\Models\User;
 use App\Domain\People\Services\StaffService;
@@ -14,7 +15,8 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * A new school on the platform: the school, its first administrator (invited
- * by email, or given a temporary password) and the current academic year. Legacy onboarding was a
+ * by email, or given a temporary password), the current academic year and the
+ * default CBC subjects for each level (DefaultCurriculum). Legacy onboarding was a
  * copy of four codebases and three databases per school.
  */
 class SchoolProvisioning
@@ -23,6 +25,7 @@ class SchoolProvisioning
         private readonly StaffService $staff,
         private readonly AcademicCalendar $calendar,
         private readonly TenantManager $tenancy,
+        private readonly DefaultCurriculum $defaults,
     ) {}
 
     /**
@@ -56,6 +59,9 @@ class SchoolProvisioning
                     'ends_on' => "{$year}-12-31",
                     'make_current' => true,
                 ], []);
+
+                // A school can set its first exam without building a curriculum.
+                $this->defaults->apply($created);
 
                 return [
                     'school' => $created,
