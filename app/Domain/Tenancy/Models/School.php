@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Domain\Tenancy\Models;
 
+use App\Domain\Billing\Models\SchoolSubscription;
+use App\Domain\Billing\Subscriptions;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -33,6 +36,14 @@ class School extends Model
             $school->uuid ??= (string) Str::uuid();
             $school->slug ??= Str::slug($school->name);
         });
+
+        // Every school starts on a free trial (docs/billing.md).
+        static::created(fn (School $school) => app(Subscriptions::class)->startTrial($school));
+    }
+
+    public function subscription(): HasOne
+    {
+        return $this->hasOne(SchoolSubscription::class);
     }
 
     public function domains(): HasMany

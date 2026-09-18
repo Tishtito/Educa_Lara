@@ -106,9 +106,9 @@ class MarkingController extends Controller
         $paper = SubjectPaper::query()->find($request->integer('subject_paper_id'));
         $classId = $request->filled('class_id') ? $request->integer('class_id') : null;
 
-        if (! $this->access->isAdmin($user)) {
+        if (! $this->access->marksAnyClass($user)) {
             if ($classId === null) {
-                return $this->forbidden('Only a school administrator can change marks-out-of for every class at once. Choose a class.');
+                return $this->forbidden('Changing marks-out-of for every class at once needs permission to mark any class. Choose a class.');
             }
 
             if ($paper === null || ! $this->access->canEnter($user, $exam, $classId, (int) $paper->level_subject_id)) {

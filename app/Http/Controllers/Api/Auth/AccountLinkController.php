@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\Auth;
 
+use App\Domain\People\Google\GoogleIdTokens;
 use App\Domain\People\Models\AccountToken;
 use App\Domain\People\Models\User;
 use App\Domain\People\Services\AccountLinks;
+use App\Domain\People\Sessions\SessionDevice;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\ForgotPasswordRequest;
+use App\Http\Requests\Auth\GoogleTokenRequest;
 use App\Http\Requests\Auth\SetPasswordRequest;
 use App\Http\Resources\UserResource;
 use Illuminate\Http\JsonResponse;
@@ -22,7 +25,10 @@ class AccountLinkController extends Controller
 {
     private const FORGOT_MESSAGE = 'If that account exists and has an email address, a link to reset the password is on its way. It expires in :minutes minutes. No email address on your account? Ask your school administrator to reset your password.';
 
-    public function __construct(private readonly AccountLinks $links) {}
+    public function __construct(
+        private readonly AccountLinks $links,
+        private readonly GoogleIdTokens $google,
+    ) {}
 
     /** GET /auth/invitations/{token} — who the invitation is for, for the set-up screen. */
     public function showInvitation(string $token): JsonResponse
@@ -39,6 +45,23 @@ class AccountLinkController extends Controller
     public function acceptInvitation(SetPasswordRequest $request, string $token): JsonResponse
     {
         return $this->complete($request, $token, AccountToken::INVITATION);
+    }
+
+    /**
+     * POST /auth/invitations/{token}/google — accept by continuing with the
+     * Google account for the invited address, instead of choosing a password.
+     */
+    public function acceptInvitationWithGoogle(GoogleTokenRequest $request, string $token): JsonResponse
+    {
+        abort_unless($this->google->enabled(), 404);
+
+        $link = $this->links->find($token, AccountToken::INVITATION);
+        $result = $this->links->consumeWithGoogle($link, $this->google->verify($request->validated('id_token')), SessionDevice::fromRequest($request));
+
+        return response()->json(['success' => true, 'data' => [
+            'token' => $result['token'],
+            'user' => new UserResource($result['user']),
+        ]]);
     }
 
     /**
@@ -83,7 +106,7 @@ class AccountLinkController extends Controller
     private function complete(SetPasswordRequest $request, string $token, string $purpose): JsonResponse
     {
         $link = $this->links->find($token, $purpose);
-        $result = $this->links->consume($link, $request->validated('password'), $request->validated('device_name') ?: 'api');
+        $result = $this->links->consume($link, $request->validated('password'), SessionDevice::fromRequest($request));
 
         return response()->json(['success' => true, 'data' => [
             'token' => $result['token'],

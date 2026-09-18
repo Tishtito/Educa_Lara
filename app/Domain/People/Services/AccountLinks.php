@@ -4,15 +4,21 @@ declare(strict_types=1);
 
 namespace App\Domain\People\Services;
 
+use App\Domain\Access\Access;
+use App\Domain\Access\PermissionRegistry;
 use App\Domain\People\Exceptions\AccountLinkUnavailable;
+use App\Domain\People\Google\GoogleIdentity;
 use App\Domain\People\Models\AccountToken;
-use App\Domain\People\Models\Role;
+use App\Domain\People\Models\PersonalAccessToken;
 use App\Domain\People\Models\User;
+use App\Domain\People\Sessions\SessionDevice;
+use App\Domain\People\Sessions\SignIn;
 use App\Notifications\Account\PasswordChanged;
 use App\Notifications\Account\PasswordResetLink;
 use App\Notifications\Account\StaffInvitation;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
 /**
@@ -26,6 +32,8 @@ use InvalidArgumentException;
  */
 class AccountLinks
 {
+    public function __construct(private readonly SignIn $signIn) {}
+
     /** Sends an invitation to the account's email. The account must not have signed in yet. */
     public function sendInvitation(User $user, ?User $by): AccountToken
     {
@@ -34,7 +42,7 @@ class AccountLinks
         $user->notify(new StaffInvitation(
             url: $this->url($user, AccountToken::INVITATION, $token),
             inviterName: $by?->name,
-            roles: $user->roles->pluck('slug')->all(),
+            roles: $user->roles->pluck('name')->all(),
             expiresAt: $link->expires_at,
         ));
 
@@ -98,11 +106,54 @@ class AccountLinks
      *
      * @return array{token: string, user: User}
      */
-    public function consume(AccountToken $link, string $password, string $deviceName): array
+    public function consume(AccountToken $link, string $password, SessionDevice $device): array
+    {
+        $result = $this->complete($link, ['password' => $password], $device, $link->purpose === AccountToken::INVITATION
+            ? PersonalAccessToken::INVITATION
+            : PersonalAccessToken::RESET);
+
+        if ($link->purpose === AccountToken::PASSWORD_RESET) {
+            $this->notifyPasswordChanged($result['user'], PasswordChanged::RESET_LINK);
+        }
+
+        return $result;
+    }
+
+    /**
+     * Accepts an invitation by continuing with the Google account for the
+     * invited address, instead of choosing a password. The password stays an
+     * unknown random one; "Forgot password" sets a real one later.
+     *
+     * @return array{token: string, user: User}
+     */
+    public function consumeWithGoogle(AccountToken $link, GoogleIdentity $google, SessionDevice $device): array
+    {
+        if (mb_strtolower((string) $link->user->email) !== $google->email) {
+            throw ValidationException::withMessages([
+                'id_token' => ["This invitation was sent to {$link->user->email}. Continue with the Google account for that address, or choose a password instead."],
+            ]);
+        }
+
+        $linkedElsewhere = User::query()->withTrashed()->where('google_sub', $google->sub)->whereKeyNot($link->user_id)->exists();
+
+        if ($linkedElsewhere) {
+            throw ValidationException::withMessages([
+                'id_token' => ['This Google account is already connected to another Educa account.'],
+            ]);
+        }
+
+        return $this->complete($link, ['password' => Str::password(40), 'google_sub' => $google->sub], $device, PersonalAccessToken::GOOGLE);
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     * @return array{token: string, user: User}
+     */
+    private function complete(AccountToken $link, array $attributes, SessionDevice $device, string $method): array
     {
         $user = $link->user;
 
-        $token = DB::transaction(function () use ($link, $user, $password, $deviceName): string {
+        $token = DB::transaction(function () use ($link, $user, $attributes, $device, $method): string {
             // Lock and re-check: two tabs submitting the same link must not both succeed.
             $fresh = AccountToken::query()->lockForUpdate()->findOrFail($link->id);
 
@@ -116,22 +167,16 @@ class AccountLinks
 
             $fresh->forceFill(['used_at' => now()])->save();
 
-            $user->forceFill([
-                'password' => $password,
+            $user->forceFill($attributes + [
                 'must_change_password' => false,
                 'email_verified_at' => $user->email_verified_at ?? now(),
-                'last_login_at' => now(),
             ])->save();
 
             $user->tokens()->delete();
             $this->revoke($user);
 
-            return $user->createToken($deviceName)->plainTextToken;
+            return $this->signIn->issue($user, $device, $method);
         });
-
-        if ($link->purpose === AccountToken::PASSWORD_RESET) {
-            $this->notifyPasswordChanged($user, PasswordChanged::RESET_LINK);
-        }
 
         return ['token' => $token, 'user' => $user->load(['roles', 'school'])];
     }
@@ -154,10 +199,11 @@ class AccountLinks
         }
     }
 
-    /** Administrators set up and recover accounts in Educa Admin; everyone else in the staff portal. */
+    /** Whoever may use Educa Admin sets up and recovers their account there; everyone else in the staff portal. */
     public function url(User $user, string $purpose, string $token): string
     {
-        $admin = $user->school_id === null || $user->hasRole(Role::SCHOOL_ADMIN) || $user->hasRole(Role::SUPER_ADMIN);
+        $admin = $user->school_id === null
+            || in_array(PermissionRegistry::ACCESS_ADMIN_APP, app(Access::class)->permissionsFor($user, $user->school_id), true);
         $base = config($admin ? 'educa.apps.admin_url' : 'educa.apps.portal_url');
         $path = $purpose === AccountToken::INVITATION ? 'invite' : 'reset-password';
 

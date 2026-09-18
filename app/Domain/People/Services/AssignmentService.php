@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace App\Domain\People\Services;
 
 use App\Domain\Academics\Models\SchoolClass;
+use App\Domain\Access\Access;
+use App\Domain\Access\PermissionRegistry;
 use App\Domain\Curriculum\Models\LevelSubject;
 use App\Domain\People\Models\ClassTeacherAssignment;
 use App\Domain\People\Models\ExaminerAssignment;
-use App\Domain\People\Models\Role;
 use App\Domain\People\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -22,10 +23,12 @@ use Illuminate\Validation\ValidationException;
  */
 class AssignmentService
 {
+    public function __construct(private readonly Access $access) {}
+
     /** @param  list<int>  $userIds  First is the primary class teacher. */
     public function setClassTeachers(SchoolClass $class, int $academicYearId, array $userIds, ?int $assignedBy = null): void
     {
-        $this->assertStaffWithRole($class->school_id, $userIds, Role::CLASS_TEACHER, 'user_ids', 'a class teacher');
+        $this->assertStaffWhoCan($class->school_id, $userIds, PermissionRegistry::VIEW_CLASS_PUPILS, 'user_ids', 'teach a class');
 
         DB::transaction(function () use ($class, $academicYearId, $userIds): void {
             ClassTeacherAssignment::query()
@@ -58,7 +61,7 @@ class AssignmentService
             if (! $allowed->contains((int) $subject['level_subject_id'])) {
                 throw ValidationException::withMessages(["subjects.{$i}.level_subject_id" => 'This subject is not taught at the class’s level.']);
             }
-            $this->assertStaffWithRole($class->school_id, $subject['user_ids'], Role::EXAMINER, "subjects.{$i}.user_ids", 'an examiner');
+            $this->assertStaffWhoCan($class->school_id, $subject['user_ids'], PermissionRegistry::ENTER_MARKS, "subjects.{$i}.user_ids", 'enter marks');
         }
 
         DB::transaction(function () use ($class, $academicYearId, $subjects, $assignedBy): void {
@@ -112,20 +115,25 @@ class AssignmentService
     }
 
     /** @param  list<int>  $userIds */
-    private function assertStaffWithRole(int $schoolId, array $userIds, string $role, string $field, string $what): void
+    /**
+     * Assignees must be able to do the work: class teachers need to see their
+     * class's pupils, examiners to enter marks — whichever role gives them that.
+     */
+    private function assertStaffWhoCan(int $schoolId, array $userIds, string $permission, string $field, string $what): void
     {
         $valid = User::query()
             ->where('school_id', $schoolId)
             ->where('is_active', true)
             ->whereIn('id', $userIds)
-            ->whereHas('roles', fn ($q) => $q->where('slug', $role))
+            ->get()
+            ->filter(fn (User $user) => in_array($permission, $this->access->permissionsFor($user, $schoolId), true))
             ->pluck('id')
             ->map(fn ($id) => (int) $id);
 
         $invalid = collect($userIds)->map(fn ($id) => (int) $id)->diff($valid);
 
         if ($invalid->isNotEmpty()) {
-            throw ValidationException::withMessages([$field => "Only active staff with the {$what} role can be assigned."]);
+            throw ValidationException::withMessages([$field => "Only active staff whose role lets them {$what} can be assigned."]);
         }
     }
 

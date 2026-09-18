@@ -131,7 +131,7 @@ final class StaffStep implements ImportStep
             }
         }
 
-        $roles = Role::query()->whereIn('slug', collect($accounts)->pluck('role')->unique())->pluck('id');
+        $roles = Role::query()->whereNull('school_id')->whereIn('slug', collect($accounts)->pluck('role')->unique())->pluck('id');
         $user->roles()->syncWithoutDetaching($roles->mapWithKeys(fn ($id) => [$id => ['school_id' => $context->school->id]])->all());
 
         foreach ($accounts as $a) {

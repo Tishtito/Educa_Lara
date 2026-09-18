@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Domain\People\Models\AccountToken;
+use App\Domain\People\Models\PersonalAccessToken;
 use App\Domain\People\Models\User;
 use App\Domain\People\Services\AccountLinks;
+use App\Domain\People\Sessions\SessionDevice;
+use App\Domain\People\Sessions\SignIn;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\ChangePasswordRequest;
 use App\Http\Requests\Auth\LoginRequest;
@@ -28,7 +31,10 @@ use Illuminate\Validation\ValidationException;
  */
 class AuthController extends Controller
 {
-    public function __construct(private readonly AccountLinks $links) {}
+    public function __construct(
+        private readonly AccountLinks $links,
+        private readonly SignIn $signIn,
+    ) {}
 
     /**
      * Credentials are (identity, password), where identity is the username or
@@ -52,23 +58,9 @@ class AuthController extends Controller
             ]);
         }
 
-        if (! $user->is_active) {
-            return response()->json([
-                'success' => false,
-                'message' => 'This account has been deactivated. Contact your school administrator.',
-            ], 403);
-        }
+        $this->signIn->assertMaySignIn($user);
 
-        if ($user->school !== null && $user->school->status === 'suspended') {
-            return response()->json([
-                'success' => false,
-                'message' => 'This school account is suspended.',
-            ], 403);
-        }
-
-        $user->forceFill(['last_login_at' => now()])->saveQuietly();
-
-        $token = $user->createToken($data['device_name'] ?? 'api')->plainTextToken;
+        $token = $this->signIn->issue($user, SessionDevice::fromRequest($request), PersonalAccessToken::PASSWORD);
 
         return response()->json([
             'success' => true,

@@ -61,8 +61,8 @@ class UserFactory extends Factory
     {
         return $this->afterCreating(function (User $user) use ($slug): void {
             $role = Role::firstOrCreate(
-                ['slug' => $slug],
-                ['name' => Str::headline($slug)]
+                ['school_id' => null, 'slug' => $slug],
+                ['name' => Str::headline($slug), 'is_system' => true]
             );
 
             $user->roles()->syncWithoutDetaching([

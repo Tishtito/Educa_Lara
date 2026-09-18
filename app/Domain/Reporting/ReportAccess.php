@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Reporting;
 
+use App\Domain\Access\PermissionRegistry;
 use App\Domain\Examination\Marking\MarkingAccess;
 use App\Domain\Examination\Models\Exam;
 use App\Domain\People\Models\User;
@@ -23,7 +24,7 @@ class ReportAccess
 
     public function canUseClass(User $user, Exam $exam, int $classId): bool
     {
-        return $this->marking->isAdmin($user)
+        return $user->can(PermissionRegistry::ACCESS_ANY_CLASS)
             || in_array($classId, $this->marking->teacherClassIds($user, $exam), true);
     }
 }

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Domain\Examination\Marking;
 
+use App\Domain\Access\PermissionRegistry;
 use App\Domain\Examination\Models\Exam;
 use App\Domain\People\Models\ClassTeacherAssignment;
 use App\Domain\People\Models\ExaminerAssignment;
-use App\Domain\People\Models\Role;
 use App\Domain\People\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -34,7 +34,7 @@ class MarkingAccess
 {
     public function canEnter(User $user, Exam $exam, int $classId, int $levelSubjectId): bool
     {
-        return $this->isAdmin($user)
+        return $this->marksAnyClass($user)
             || $this->examinerAssignments($user, $exam)
                 ->where('class_id', $classId)
                 ->where('level_subject_id', $levelSubjectId)
@@ -51,11 +51,14 @@ class MarkingAccess
                 ->exists();
     }
 
-    public function isAdmin(User $user): bool
+    /**
+     * Whether this user may open and enter every marksheet, not only the ones
+     * they are assigned. Was "is an administrator"; now a permission any role
+     * can be given (a deputy head who marks, say).
+     */
+    public function marksAnyClass(User $user): bool
     {
-        $user->loadMissing('roles');
-
-        return $user->hasRole(Role::SCHOOL_ADMIN) || $user->hasRole(Role::SUPER_ADMIN);
+        return $user->can(PermissionRegistry::MARK_ANY_CLASS);
     }
 
     /**
@@ -66,7 +69,7 @@ class MarkingAccess
      */
     public function enterablePairs(User $user, Exam $exam): ?array
     {
-        if ($this->isAdmin($user)) {
+        if ($this->marksAnyClass($user)) {
             return null;
         }
 

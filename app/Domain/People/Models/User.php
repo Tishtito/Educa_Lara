@@ -35,7 +35,7 @@ class User extends Authenticatable
 
     protected $guarded = ['id'];
 
-    protected $hidden = ['password', 'remember_token'];
+    protected $hidden = ['password', 'remember_token', 'google_sub'];
 
     protected function casts(): array
     {

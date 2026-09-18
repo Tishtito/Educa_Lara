@@ -72,6 +72,19 @@ recoverable from the code alone.
    Never `Mail::send` to a person directly. Links go through `AccountLinks`,
    which stores only token hashes. `docs/email.md`.
 
+19. **Guard actions with permissions, never role slugs.** Routes use
+   `->middleware('can:<slug>')`; code asks `$user->can(...)`. Slugs live in
+   `App\Domain\Access\PermissionRegistry`; roles grant them per school.
+   Record-level rules (which class, which marksheet) stay in the access services.
+   `PermissionsTest` rejects unknown slugs and any `role:` middleware;
+   `RouteAccessMatrixTest` pins who reaches every route. `docs/permissions.md`.
+20. **Paid features sit behind `subscribed`.** A new route for exams, marking,
+   mark lists or report cards goes inside the `subscribed` group in
+   `routes/api.php`; `SubscriptionLockTest` lists every locked route and fails
+   until the list is updated. Money only turns into days in
+   `SubscriptionLedger`. Billing tables are not tenant-scoped (webhooks have no
+   tenant), so every billing query names its `school_id`. `docs/billing.md`.
+
 ## Conventions
 
 - `declare(strict_types=1)` in every file.

@@ -4,25 +4,18 @@ declare(strict_types=1);
 
 namespace App\Notifications\Account;
 
-use App\Domain\People\Models\Role;
 use App\Domain\Tenancy\Models\School;
 use App\Notifications\EducaMail;
 use DateTimeInterface;
 use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 
 /** "Set up your account": a new staff member chooses their own password. */
 class StaffInvitation extends EducaMail implements ShouldBeEncrypted
 {
-    private const ROLE_WORDS = [
-        Role::SCHOOL_ADMIN => 'school administrator',
-        Role::CLASS_TEACHER => 'class teacher',
-        Role::EXAMINER => 'examiner',
-        Role::SUPER_ADMIN => 'platform administrator',
-    ];
-
-    /** @param  list<string>  $roles */
+    /** @param  list<string>  $roles  role names, built-in or the school's own ("Deputy Head") */
     public function __construct(
         public readonly string $url,
         public readonly ?string $inviterName,
@@ -40,7 +33,7 @@ class StaffInvitation extends EducaMail implements ShouldBeEncrypted
     protected function message(object $notifiable, ?School $school): MailMessage
     {
         $where = $school ? $school->name : 'Educa';
-        $roles = collect($this->roles)->map(fn ($slug) => self::ROLE_WORDS[$slug] ?? $slug)->join(', ', ' and ');
+        $roles = collect($this->roles)->map(fn (string $name) => Str::lower($name))->join(', ', ' and ');
         $expires = Carbon::instance($this->expiresAt)->setTimezone($school->timezone ?? config('app.timezone'))->format('j F Y \a\t H:i');
 
         $message = $this->mailMessage($school)

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\Portal;
 
 use App\Domain\Academics\Models\AcademicYear;
+use App\Domain\Access\PermissionRegistry;
 use App\Domain\Examination\Enums\ExamStatus;
 use App\Domain\Examination\Marking\MarkingOverview;
 use App\Domain\Examination\Models\Exam;
@@ -86,12 +87,13 @@ class MeController extends Controller
 
     /**
      * GET /me/exams — exams covering a class I teach or mark in that exam's
-     * year (admins: every exam), newest first, with my marking progress.
+     * year (with access_any_class or mark_any_class: every exam), newest first,
+     * with my marking progress.
      */
     public function exams(Request $request, MarkingOverview $overview): JsonResponse
     {
         $user = $request->user();
-        $admin = $this->access->isAdmin($user);
+        $admin = $user->can(PermissionRegistry::ACCESS_ANY_CLASS) || $user->can(PermissionRegistry::MARK_ANY_CLASS);
 
         $exams = Exam::query()
             ->where('status', '!=', ExamStatus::ARCHIVED)

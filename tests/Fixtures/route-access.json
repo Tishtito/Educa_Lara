@@ -1,0 +1,758 @@
+{
+    "DELETE api/academic-years/{academicYear}": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "DELETE api/auth/google": {
+        "school_admin": true,
+        "class_teacher": true,
+        "examiner": true,
+        "super_admin": true
+    },
+    "DELETE api/auth/sessions": {
+        "school_admin": true,
+        "class_teacher": true,
+        "examiner": true,
+        "super_admin": true
+    },
+    "DELETE api/auth/sessions/{session}": {
+        "school_admin": true,
+        "class_teacher": true,
+        "examiner": true,
+        "super_admin": true
+    },
+    "DELETE api/classes/{schoolClass}": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "DELETE api/exams/{exam}": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "DELETE api/grading-scales/{gradingScale}": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "DELETE api/level-subjects/{levelSubject}": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "DELETE api/roles/{role}": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "DELETE api/school/logo": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "DELETE api/staff/{staff}": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "DELETE api/staff/{staff}/invitation": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "DELETE api/streams/{stream}": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "DELETE api/students/{student}": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "DELETE api/subjects/{subject}": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/academic-years": {
+        "school_admin": true,
+        "class_teacher": true,
+        "examiner": true,
+        "super_admin": true
+    },
+    "GET api/auth/me": {
+        "school_admin": true,
+        "class_teacher": true,
+        "examiner": true,
+        "super_admin": true
+    },
+    "GET api/auth/sessions": {
+        "school_admin": true,
+        "class_teacher": true,
+        "examiner": true,
+        "super_admin": true
+    },
+    "GET api/billing": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/billing/payments/{payment}": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/class-teacher-assignments": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/classes": {
+        "school_admin": true,
+        "class_teacher": true,
+        "examiner": true,
+        "super_admin": true
+    },
+    "GET api/dashboard": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/examiner-assignments": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/exams": {
+        "school_admin": true,
+        "class_teacher": true,
+        "examiner": true,
+        "super_admin": true
+    },
+    "GET api/exams/{exam}": {
+        "school_admin": true,
+        "class_teacher": true,
+        "examiner": true,
+        "super_admin": true
+    },
+    "GET api/exams/{exam}/marking": {
+        "school_admin": true,
+        "class_teacher": true,
+        "examiner": true,
+        "super_admin": true
+    },
+    "GET api/exams/{exam}/marklist": {
+        "school_admin": true,
+        "class_teacher": true,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/exams/{exam}/marksheet": {
+        "school_admin": true,
+        "class_teacher": true,
+        "examiner": true,
+        "super_admin": true
+    },
+    "GET api/exams/{exam}/report-cards": {
+        "school_admin": true,
+        "class_teacher": true,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/exams/{exam}/report-cards/{enrolment}": {
+        "school_admin": true,
+        "class_teacher": true,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/exams/{exam}/report-cards/{enrolment}/pdf": {
+        "school_admin": true,
+        "class_teacher": true,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/exams/{exam}/report-entries": {
+        "school_admin": true,
+        "class_teacher": true,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/exams/{exam}/setup": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/exams/{exam}/statistics": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/exams/{exam}/stream-list": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/grades": {
+        "school_admin": true,
+        "class_teacher": true,
+        "examiner": true,
+        "super_admin": true
+    },
+    "GET api/grading-scales": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/level-subjects": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/levels": {
+        "school_admin": true,
+        "class_teacher": true,
+        "examiner": true,
+        "super_admin": true
+    },
+    "GET api/me/assignments": {
+        "school_admin": true,
+        "class_teacher": true,
+        "examiner": true,
+        "super_admin": true
+    },
+    "GET api/me/exams": {
+        "school_admin": true,
+        "class_teacher": true,
+        "examiner": true,
+        "super_admin": true
+    },
+    "GET api/me/selected-exam": {
+        "school_admin": true,
+        "class_teacher": true,
+        "examiner": true,
+        "super_admin": true
+    },
+    "GET api/my/classes/{schoolClass}/students": {
+        "school_admin": false,
+        "class_teacher": true,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/my/students/{student}": {
+        "school_admin": false,
+        "class_teacher": true,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/my/students/{student}/results": {
+        "school_admin": false,
+        "class_teacher": true,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/permissions": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/platform/payments": {
+        "school_admin": false,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/platform/queue-health": {
+        "school_admin": false,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/platform/schools": {
+        "school_admin": false,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/platform/schools/{uuid}/subscription": {
+        "school_admin": false,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/platform/subscriptions": {
+        "school_admin": false,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/promotions/preview": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/report-card-batches/{batch}": {
+        "school_admin": true,
+        "class_teacher": true,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/report-card-batches/{batch}/download": {
+        "school_admin": true,
+        "class_teacher": true,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/roles": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/school/logo": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/school/profile": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/school/report-card-settings": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/staff": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/streams": {
+        "school_admin": true,
+        "class_teacher": true,
+        "examiner": true,
+        "super_admin": true
+    },
+    "GET api/students": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/students/{student}": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/students/{student}/results": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/subjects": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/terms": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "PATCH api/academic-years/{academicYear}": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "PATCH api/classes/{schoolClass}": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "PATCH api/exams/{exam}": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "PATCH api/grading-scales/{gradingScale}": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "PATCH api/level-subjects/{levelSubject}": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "PATCH api/platform/schools/{uuid}": {
+        "school_admin": false,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "PATCH api/platform/schools/{uuid}/subscription": {
+        "school_admin": false,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "PATCH api/roles/{role}": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "PATCH api/school/profile": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "PATCH api/staff/{staff}": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "PATCH api/streams/{stream}": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "PATCH api/students/{student}": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "PATCH api/subjects/{subject}": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "PATCH api/terms/{term}": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/academic-years": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/academic-years/{academicYear}/make-current": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/assignments/copy-year": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/auth/logout": {
+        "school_admin": true,
+        "class_teacher": true,
+        "examiner": true,
+        "super_admin": true
+    },
+    "POST api/auth/password": {
+        "school_admin": true,
+        "class_teacher": true,
+        "examiner": true,
+        "super_admin": true
+    },
+    "POST api/billing/stk": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/classes": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/exams": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/exams/{exam}/compute": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/exams/{exam}/report-card-batches": {
+        "school_admin": true,
+        "class_teacher": true,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/exams/{exam}/transition": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/grading-scales": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/grading-scales/{gradingScale}/make-default": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/level-subjects": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/level-subjects/defaults": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/my/classes/{schoolClass}/students": {
+        "school_admin": false,
+        "class_teacher": true,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/my/students/{student}/move": {
+        "school_admin": false,
+        "class_teacher": true,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/platform/payments/{payment}/assign": {
+        "school_admin": false,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/platform/schools": {
+        "school_admin": false,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/platform/schools/{uuid}/subscription/payments": {
+        "school_admin": false,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/promotions": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/roles": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/roles/{role}/reset": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/school/logo": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/staff": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/staff/{staff}/invitation": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/staff/{staff}/reset-password": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/staff/{staff}/sign-out": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/streams": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/students": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/students/import": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/students/{student}/move": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/students/{student}/status": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/subjects": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/terms": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/terms/{term}/make-current": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "PUT api/classes/{schoolClass}/class-teachers": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "PUT api/classes/{schoolClass}/examiners": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "PUT api/exams/{exam}/marksheet": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": true,
+        "super_admin": true
+    },
+    "PUT api/exams/{exam}/max-marks": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": true,
+        "super_admin": true
+    },
+    "PUT api/exams/{exam}/report-entries": {
+        "school_admin": true,
+        "class_teacher": true,
+        "examiner": false,
+        "super_admin": true
+    },
+    "PUT api/exams/{exam}/subjects": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "PUT api/grading-scales/{gradingScale}/bands": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "PUT api/me/selected-exam": {
+        "school_admin": true,
+        "class_teacher": true,
+        "examiner": true,
+        "super_admin": true
+    },
+    "PUT api/roles/{role}/permissions": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "PUT api/school/report-card-settings": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    }
+}

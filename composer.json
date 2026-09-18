@@ -8,6 +8,7 @@
     "require": {
         "php": "^8.3",
         "dompdf/dompdf": "^3.1",
+        "firebase/php-jwt": "^7.1",
         "laravel/framework": "^13.8",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^3.0"
@@ -44,7 +45,7 @@
         ],
         "dev": [
             "Composer\\Config::disableProcessTimeout",
-            "npx concurrently -c \"#93c5fd,#c4b5fd,#a5b4fc,#fb7185,#fdba74\" \"php artisan serve\" \"php artisan queue:listen database --queue=results,default --tries=1 --timeout=0\" \"php artisan queue:listen database-long --queue=reports,notifications,default --tries=1 --timeout=0\" \"php artisan pail --timeout=0\" \"npm run dev\" --names=server,queue,queue-long,logs,vite --kill-others"
+            "npx concurrently -c \"#93c5fd,#c4b5fd,#a5b4fc,#fb7185,#fdba74,#86efac\" \"php artisan serve\" \"php artisan queue:listen database --queue=results,default --tries=1 --timeout=0\" \"php artisan queue:listen database-long --queue=reports,notifications,default --tries=1 --timeout=0\" \"php artisan pail --timeout=0\" \"npm run dev\" \"php artisan mpesa:tunnel\" --names=server,queue,queue-long,logs,vite,tunnel --kill-others"
         ],
         "test": [
             "@php artisan config:clear --ansi @no_additional_args",

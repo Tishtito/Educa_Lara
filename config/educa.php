@@ -32,6 +32,23 @@ return [
         'resend_cooldown_seconds' => (int) env('ACCOUNT_LINK_COOLDOWN_SECONDS', 60),
     ],
 
+    // School subscriptions (docs/billing.md). Prices and cycles are set per
+    // school by the platform superadmin; these are only the starting values.
+    'billing' => [
+        'trial_days' => (int) env('BILLING_TRIAL_DAYS', 30),
+        'default_cycle_months' => (int) env('BILLING_DEFAULT_CYCLE_MONTHS', 4),
+        'currency' => 'KES',
+        // Reminder emails this many days before paid_until runs out (and on the day it lapses).
+        'reminder_days' => [7, 1],
+    ],
+
+    // Sign-in sessions (Sanctum tokens). The absolute lifetime is Sanctum's own
+    // 'expiration' (config/sanctum.php, SANCTUM_EXPIRATION); this is the idle limit.
+    'sessions' => [
+        // A session unused for this many days ends; the person signs in again.
+        'idle_days' => (int) env('SESSION_IDLE_DAYS', 30),
+    ],
+
     'ops' => [
         // Where queue incidents, recoveries and failed jobs are mailed. Unset =
         // alerts are only logged.

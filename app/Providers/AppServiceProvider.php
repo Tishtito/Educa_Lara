@@ -4,7 +4,12 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Domain\Access\Access;
+use App\Domain\Access\PermissionRegistry;
 use App\Domain\Messaging\EmailLogger;
+use App\Domain\People\Models\PersonalAccessToken;
+use App\Domain\People\Models\User;
+use App\Domain\People\Sessions\SignIn;
 use App\Domain\Tenancy\TenantManager;
 use App\Notifications\QueueJobFailed;
 use App\Operations\OpsAlerts;
@@ -14,8 +19,10 @@ use Illuminate\Notifications\Events\NotificationSent;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Queue\Events\Looping;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Sanctum\Sanctum;
 use RuntimeException;
 use Throwable;
 
@@ -38,6 +45,23 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Routes guard with `can:<permission>` and code asks $user->can(...).
+        // Permissions come from roles, per school (App\Domain\Access\Access).
+        // Anything that is not a registered permission falls through to normal
+        // Gate definitions — of which there are none, so it is denied.
+        Gate::before(fn (User $user, string $ability) => PermissionRegistry::exists($ability)
+            ? $this->app->make(Access::class)->allows($user, $ability)
+            : null);
+
+        // Sessions record their device (PersonalAccessToken). Sanctum ends a
+        // session at its absolute lifetime (sanctum.expiration); this ends one
+        // left unused for educa.sessions.idle_days. It runs before Sanctum
+        // stamps last_used_at, so it sees when the session was last used.
+        Sanctum::usePersonalAccessTokenModel(PersonalAccessToken::class);
+        Sanctum::authenticateAccessTokensUsing(
+            fn (PersonalAccessToken $token, bool $isValid) => $isValid && SignIn::isFresh($token),
+        );
+
         Queue::looping(function (Looping $event): void {
             // Workers are long-lived, so a job would otherwise inherit whichever
             // tenant the previous job resolved. Clearing between jobs makes the

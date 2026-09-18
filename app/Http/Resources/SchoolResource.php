@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Domain\Billing\Subscriptions;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -22,6 +23,8 @@ class SchoolResource extends JsonResource
             'logo_path' => $this->logo_path,
             'timezone' => $this->timezone,
             'status' => $this->status,
+            // Whether exams, marking, mark lists and report cards are open (docs/billing.md).
+            'subscription' => app(Subscriptions::class)->stateFor($this->resource),
         ];
     }
 }

@@ -124,6 +124,12 @@ pins it.
 ## 3. Authentication and authorization
 
 - **Sanctum bearer tokens.** `POST /api/auth/login` returns a plain-text token.
+  A session ends 90 days after sign-in, or after 30 days unused; each records
+  its app, platform and sign-in method, and people can sign their devices out
+  (`docs/authentication.md`).
+- **Continue with Google** signs in an existing account by the Google ID token's
+  verified email, then by the connected Google account (`users.google_sub`). It
+  never creates accounts.
 - **Credentials are `(identity, password)`**, where identity is the username or
   the email address, matched case-insensitively. No school code: both columns are
   unique platform-wide, so one account can be found from what the person typed.
@@ -142,8 +148,13 @@ pins it.
 - **Self-service registration is not carried over.** Legacy exposed an open
   `POST /signup/register` on all three portals of every deployment: anyone could
   create an admin account. Users are created by a school admin.
-- Roles are `super_admin`, `school_admin`, `class_teacher`, `examiner`, gated by
-  `EnsureUserHasRole` (alias `role`). A `super_admin` passes every check.
+- **Permissions, not roles, guard actions** (`docs/permissions.md`). Routes use
+  `can:<permission>`, answered through `Gate::before` from the user's roles *in
+  the resolved school*. Built-in roles are `super_admin` (everything),
+  `school_admin` (every school permission, fixed), and `class_teacher` and
+  `examiner` (code defaults a school may edit). Schools may also create their own
+  roles. `RouteAccessMatrixTest` proved the switch from the old `role:` gates
+  changed nobody's access, and still pins it.
 - **Forced password change.** Users with `must_change_password` (every account
   imported from legacy) get 403 `{password_change_required: true}` from every
   route behind `password.changed` (`EnsurePasswordChanged`) until they call
@@ -562,6 +573,9 @@ student).
 | Analytics (read-only): grade-wide stream list, exam statistics (MSS by class/grade/level/school, subject means), dashboard with set-up gaps; school profile + logo upload (feeds report card PDFs); platform school provisioning and suspension | done, tested |
 | Staff portal API for `../Educa_Portal`: my assignments, my exams with marking progress (`MarkingOverview`, shared with the marking tab), class-teacher pupils (roster, admit into own class, move out, profile and results of pupils taught — `ClassTeachingAccess`); mark list now limited to the class teacher's own classes and to classes in the exam | done, tested |
 | Email: `EducaMail` base (queued after commit, school-branded sender, reply-to school, delivery log, encrypted secrets), `mail:test`; staff invitations by email (resend/cancel, first admin of a new school), forgot-password links, password-changed notices — `docs/email.md` | done, tested |
+| Permissions: registry in code + `permissions:sync`, `can:` on every route, per-school role permissions, schools' own roles, no-escalation, `/auth/me` permissions, Roles & permissions screen — `docs/permissions.md` | done, tested |
+| Sign-in: Continue with Google (web, Android, iOS; invitations too), session lifetime + idle expiry + `sessions:prune`, signed-in devices and staff sign-out — `docs/authentication.md` | done, tested (Google verified against a local key set; not yet against real Google clients) |
+| Subscriptions: one per school (price and cycle set by the superadmin, trial, credit balance), `subscribed` lock (402) on exams, marking, mark lists and report cards, M-Pesa STK push + Paybill webhooks with reconciliation, receipts and reminders, platform billing — `docs/billing.md` | done, tested (Daraja faked; not yet run against the sandbox) |
 | SMS | not started — legacy only ever appended to `logs/sms.log`; no gateway existed |
 | Fees, attendance, timetable, parent/student portals | absent from legacy; new build, not conversion |
 
@@ -578,7 +592,7 @@ composer install
 cp .env.example .env && php artisan key:generate
 php artisan migrate:fresh --seed     # MySQL: educa_lara
 php artisan test                     # MySQL: educa_lara_test
-composer run dev                     # serve + queue:listen on every queue + logs + vite
+composer run dev                     # serve + queue:listen on every queue + logs + vite + ngrok tunnel (M-Pesa callbacks)
 ```
 
 Seeded logins (password `password` for all): `superadmin` (platform, needs an

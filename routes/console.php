@@ -34,3 +34,11 @@ Schedule::command('reports:prune-batches')->daily();
 
 // Email delivery log retention (config educa.mail.log_retention_days).
 Schedule::command('mail:prune-log')->daily();
+
+// Sessions past their lifetime or idle limit (docs/authentication.md).
+Schedule::command('sessions:prune')->daily();
+
+// Subscriptions (docs/billing.md): settle STK payments whose callback never
+// came, and email renewal reminders in the morning, Nairobi time.
+Schedule::command('billing:reconcile')->everyFiveMinutes()->withoutOverlapping();
+Schedule::command('billing:remind')->dailyAt('07:00')->timezone('Africa/Nairobi');

@@ -46,6 +46,26 @@ class SchoolFactory extends Factory
         ];
     }
 
+    /**
+     * Test schools are paid a year ahead, so tests of everything else never
+     * trip over the subscription lock. Use overdue() or trial() to test it.
+     */
+    public function configure(): static
+    {
+        return $this->afterCreating(fn (School $school) => $school->subscription()->update([
+            'paid_until' => now($school->timezone)->addYear()->toDateString(),
+            'is_trial' => false,
+        ]));
+    }
+
+    public function overdue(int $daysAgo = 1): static
+    {
+        return $this->afterCreating(fn (School $school) => $school->subscription()->update([
+            'paid_until' => now($school->timezone)->subDays($daysAgo)->toDateString(),
+            'is_trial' => false,
+        ]));
+    }
+
     public function suspended(): static
     {
         return $this->state(fn () => ['status' => 'suspended']);

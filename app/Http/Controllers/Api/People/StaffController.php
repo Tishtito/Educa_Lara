@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\People;
 
 use App\Domain\Academics\Models\AcademicYear;
+use App\Domain\Access\Access;
 use App\Domain\People\Models\User;
 use App\Domain\People\Services\StaffService;
 use App\Domain\Tenancy\TenantManager;
@@ -20,6 +21,7 @@ class StaffController extends Controller
     public function __construct(
         private readonly StaffService $staff,
         private readonly TenantManager $tenancy,
+        private readonly Access $access,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -31,6 +33,7 @@ class StaffController extends Controller
             ->where('school_id', $this->schoolId())
             ->with(['roles', 'pendingInvitation', 'classTeacherAssignments' => fn ($q) => $q->where('academic_year_id', $yearId)->with('schoolClass')])
             ->withCount(['examinerAssignments' => fn ($q) => $q->where('academic_year_id', $yearId)])
+            ->withMax('tokens as last_active_at', 'last_used_at')
             ->when($search !== '', fn ($q) => $q->where(fn ($q) => $q
                 ->where('name', 'like', "%{$search}%")
                 ->orWhere('username', 'like', "%{$search}%")
@@ -40,6 +43,15 @@ class StaffController extends Controller
             ->orderByDesc('is_active')
             ->orderBy('name')
             ->get();
+
+        // Each account's permissions, from one lookup per distinct role rather
+        // than per person, so the assignment screens can offer only people who
+        // can do the work.
+        $grants = $this->access->grantsFor($users->flatMap->roles->unique('id'), $this->schoolId());
+        $users->each(fn (User $user) => $user->setAttribute(
+            'permission_slugs',
+            array_values(array_unique(array_merge([], ...$user->roles->map(fn ($role) => $grants[$role->id] ?? [])->all()))),
+        ));
 
         return response()->json(['success' => true, 'data' => StaffResource::collection($users)->resolve()]);
     }
@@ -77,6 +89,18 @@ class StaffController extends Controller
         $password = $this->staff->resetPassword($user, $request->user());
 
         return response()->json(['success' => true, 'data' => ['temporary_password' => $password, 'username' => $user->username]]);
+    }
+
+    /** POST /staff/{id}/sign-out — end the account's sessions on every device. */
+    public function signOut(Request $request, int $staff): JsonResponse
+    {
+        $user = $this->find($staff);
+        $count = $this->staff->signOutEverywhere($user, $request->user());
+
+        return response()->json([
+            'success' => true,
+            'message' => $count === 1 ? "{$user->name} is signed out on 1 device." : "{$user->name} is signed out on {$count} devices.",
+        ]);
     }
 
     /** POST /staff/{id}/invitation — send, or send again, the set-up email. */

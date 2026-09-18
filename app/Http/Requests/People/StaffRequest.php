@@ -4,9 +4,14 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\People;
 
-use App\Domain\People\Services\StaffService;
+use App\Domain\Access\RoleService;
+use App\Domain\People\Models\Role;
+use App\Domain\Tenancy\TenantManager;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\Validator;
 
 class StaffRequest extends FormRequest
 {
@@ -52,8 +57,41 @@ class StaffRequest extends FormRequest
             'tsc_no' => ['sometimes', 'nullable', 'string', 'max:40'],
             'is_active' => ['sometimes', 'boolean'],
             'roles' => [$required, 'array', 'min:1'],
-            'roles.*' => ['string', Rule::in(StaffService::GRANTABLE), 'distinct'],
+            'roles.*' => ['string', 'distinct', Rule::in($this->assignableRoles()->pluck('slug')->all())],
         ];
+    }
+
+    /**
+     * No escalation through roles: the roles given must not reach beyond what the
+     * person giving them may do (RoleService::assertAssignable).
+     */
+    public function after(): array
+    {
+        return [function (Validator $validator): void {
+            $slugs = $this->input('roles');
+
+            if (! is_array($slugs) || $validator->errors()->has('roles') || $validator->errors()->has('roles.*')) {
+                return;
+            }
+
+            $schoolId = app(TenantManager::class)->id();
+            $roles = $this->assignableRoles()->whereIn('slug', $slugs);
+
+            try {
+                app(RoleService::class)->assertAssignable($this->user(), $roles, (int) $schoolId);
+            } catch (ValidationException $e) {
+                $validator->errors()->add('roles', 'You can only give roles that do no more than you can do yourself.');
+            }
+        }];
+    }
+
+    /** @return Collection<int, Role> */
+    private function assignableRoles(): Collection
+    {
+        return Role::query()
+            ->availableTo((int) app(TenantManager::class)->id())
+            ->where('slug', '!=', Role::SUPER_ADMIN)
+            ->get();
     }
 
     public function messages(): array

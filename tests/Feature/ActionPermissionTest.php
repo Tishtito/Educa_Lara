@@ -14,9 +14,10 @@ use Tests\TestCase;
 /**
  * Legacy had no authorization layer at all — every controller's requireAuth()
  * checked only that a session existed, and the sole thing separating an examiner
- * from an admin was which directory they had logged into.
+ * from an admin was which directory they had logged into. Actions now need a
+ * permission (`can:create_exams`), which roles grant per school.
  */
-class RoleMiddlewareTest extends TestCase
+class ActionPermissionTest extends TestCase
 {
     use RefreshDatabase;
 

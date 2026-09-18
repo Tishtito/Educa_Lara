@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Domain\People;
 
 use App\Domain\Academics\Models\AcademicYear;
+use App\Domain\Access\PermissionRegistry;
 use App\Domain\People\Models\ClassTeacherAssignment;
-use App\Domain\People\Models\Role;
 use App\Domain\People\Models\Student;
 use App\Domain\People\Models\StudentEnrolment;
 use App\Domain\People\Models\User;
@@ -17,13 +17,14 @@ use App\Domain\People\Models\User;
  * and delete pupils in any class, because every portal account shared one
  * database and nothing checked the class.
  *
- * Admins pass every check, as elsewhere (MarkingAccess::isAdmin).
+ * access_any_class passes every check, as mark_any_class does for marking.
  */
 class ClassTeachingAccess
 {
-    public function isAdmin(User $user): bool
+    /** Every class's pupils, not only the teacher's own. Was "is an administrator". */
+    public function accessesAnyClass(User $user): bool
     {
-        return $user->hasRole(Role::SCHOOL_ADMIN) || $user->hasRole(Role::SUPER_ADMIN);
+        return $user->can(PermissionRegistry::ACCESS_ANY_CLASS);
     }
 
     public function currentYearId(): ?int
@@ -50,13 +51,13 @@ class ClassTeachingAccess
 
     public function teachesClass(User $user, int $classId, ?int $academicYearId): bool
     {
-        return $this->isAdmin($user) || in_array($classId, $this->classIds($user, $academicYearId), true);
+        return $this->accessesAnyClass($user) || in_array($classId, $this->classIds($user, $academicYearId), true);
     }
 
     /** The pupil is in one of this teacher's classes this year — required to move them. */
     public function teachesPupilNow(User $user, Student $student): bool
     {
-        if ($this->isAdmin($user)) {
+        if ($this->accessesAnyClass($user)) {
             return true;
         }
 
@@ -73,7 +74,7 @@ class ClassTeachingAccess
     /** The pupil was ever in a class this user taught that same year — enough to read their record. */
     public function hasTaughtPupil(User $user, Student $student): bool
     {
-        if ($this->isAdmin($user)) {
+        if ($this->accessesAnyClass($user)) {
             return true;
         }
 

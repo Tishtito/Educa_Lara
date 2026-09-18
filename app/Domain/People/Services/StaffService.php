@@ -25,9 +25,6 @@ use Illuminate\Support\Str;
  */
 class StaffService
 {
-    /** Roles a school may grant. super_admin is platform-only. */
-    public const GRANTABLE = [Role::SCHOOL_ADMIN, Role::CLASS_TEACHER, Role::EXAMINER];
-
     public function __construct(private readonly AccountLinks $links) {}
 
     /**
@@ -126,6 +123,8 @@ class StaffService
             // A link already emailed to the old address must stop working.
             if ($user->isDirty('email')) {
                 $this->links->revoke($user);
+                // The connected Google account was matched to the old address.
+                $user->google_sub = null;
             }
 
             $user->save();
@@ -159,6 +158,21 @@ class StaffService
         return $password;
     }
 
+    /**
+     * Ends every session the account has, on every device: a lost phone, a
+     * shared computer left signed in. The account itself keeps working.
+     *
+     * @return int sessions ended
+     */
+    public function signOutEverywhere(User $user, User $actor): int
+    {
+        if ($user->is($actor)) {
+            throw SetupConflict::inUse('Your own sessions', 'this would sign you out here too', 'Use "Sign out everywhere else" on your Account page.');
+        }
+
+        return $user->tokens()->delete();
+    }
+
     public function delete(User $user, User $actor): void
     {
         if ($user->is($actor)) {
@@ -178,10 +192,19 @@ class StaffService
         });
     }
 
-    /** @param  list<string>  $slugs */
+    /**
+     * The user's roles in their school: built-in ones (never super_admin, which
+     * is platform-only) and the school's own.
+     *
+     * @param  list<string>  $slugs
+     */
     private function syncRoles(User $user, array $slugs): void
     {
-        $ids = Role::query()->whereIn('slug', array_intersect($slugs, self::GRANTABLE))->pluck('id');
+        $ids = Role::query()
+            ->availableTo((int) $user->school_id)
+            ->where('slug', '!=', Role::SUPER_ADMIN)
+            ->whereIn('slug', $slugs)
+            ->pluck('id');
 
         $user->roles()->sync($ids->mapWithKeys(fn ($id) => [$id => ['school_id' => $user->school_id]])->all());
         $user->unsetRelation('roles');
@@ -193,7 +216,7 @@ class StaffService
             ->where('school_id', $user->school_id)
             ->where('is_active', true)
             ->whereKeyNot($user->id)
-            ->whereHas('roles', fn ($q) => $q->where('slug', Role::SCHOOL_ADMIN))
+            ->whereHas('roles', fn ($q) => $q->whereNull('roles.school_id')->where('slug', Role::SCHOOL_ADMIN))
             ->count();
     }
 

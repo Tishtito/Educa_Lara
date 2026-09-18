@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Domain\Access\PermissionSync;
 use App\Domain\People\Models\Role;
 use Illuminate\Database\Seeder;
 
@@ -40,7 +41,10 @@ class RoleSeeder extends Seeder
         ];
 
         foreach ($roles as $role) {
-            Role::updateOrCreate(['slug' => $role['slug']], $role);
+            Role::withTrashed()->updateOrCreate(['school_id' => null, 'slug' => $role['slug']], $role + ['is_system' => true]);
         }
+
+        // Permissions are code (PermissionRegistry); keep the table in step.
+        app(PermissionSync::class)->run();
     }
 }

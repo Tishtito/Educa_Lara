@@ -319,7 +319,7 @@ class StaffInvitationTest extends TestCase
 
         Notification::assertSentTo($grace, StaffInvitation::class, fn (StaffInvitation $n) => str_starts_with($n->url, config('educa.apps.admin_url').'/invite/')
             && $n->inviterName === 'Platform Person'
-            && $n->roles === [Role::SCHOOL_ADMIN]);
+            && $n->roles === ['School Administrator']);
 
         $this->postJson('/api/platform/schools', [
             'name' => 'No Mail School',
