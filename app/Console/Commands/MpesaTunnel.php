@@ -31,7 +31,17 @@ class MpesaTunnel extends Command
 
     protected $description = 'Open an ngrok tunnel for local M-Pesa callbacks (development)';
 
+    /**
+     * How long the cached URL outlives its heartbeat. Short enough that a dead
+     * tunnel stops being used, long enough to survive a slow loop.
+     */
+    private const URL_TTL_SECONDS = 150;
+
+    private const HEARTBEAT_SECONDS = 30;
+
     private ?InvokedProcess $ngrok = null;
+
+    private ?string $url = null;
 
     public function handle(DarajaClient $daraja): int
     {
@@ -66,7 +76,8 @@ class MpesaTunnel extends Command
             return $this->idle();
         }
 
-        Cache::forever(DarajaClient::TUNNEL_URL_CACHE_KEY, $url);
+        $this->url = $url;
+        $this->heartbeat();
 
         $this->info("Tunnel: {$url} → ".config('services.mpesa.ngrok.upstream'));
         $this->reportCallbacks($daraja, $url);
@@ -151,7 +162,7 @@ class MpesaTunnel extends Command
             return;
         }
 
-        $masked = preg_replace('#/mpesa/[^/]+/#', '/mpesa/<secret>/', $daraja->webhookUrl('stk'));
+        $masked = preg_replace('#/webhooks/pay/[^/]+/#', '/webhooks/pay/<secret>/', $daraja->webhookUrl('stk'));
         $this->line("M-Pesa STK callback: {$masked}");
 
         if (! $daraja->configured()) {
@@ -176,9 +187,11 @@ class MpesaTunnel extends Command
         }
     }
 
-    /** Stays up while ngrok runs, echoing its warnings and errors. */
+    /** Stays up while ngrok runs, echoing its warnings and keeping the cached URL alive. */
     private function watch(): int
     {
+        $lastHeartbeat = time();
+
         while ($this->ngrok?->running()) {
             foreach (preg_split('/\R/', $this->ngrok->latestOutput().$this->ngrok->latestErrorOutput()) ?: [] as $line) {
                 if (preg_match('/lvl=(eror|crit|warn)/', $line)) {
@@ -186,13 +199,31 @@ class MpesaTunnel extends Command
                 }
             }
 
+            if (time() - $lastHeartbeat >= self::HEARTBEAT_SECONDS) {
+                $this->heartbeat();
+                $lastHeartbeat = time();
+            }
+
             sleep(1);
         }
 
         $this->error('ngrok stopped. Restart `composer run dev` to open the tunnel again.');
-        Cache::forget(DarajaClient::TUNNEL_URL_CACHE_KEY);
 
         return $this->idle();
+    }
+
+    /**
+     * Re-stamps the cached URL with a short life, so it fades away on its own
+     * once no tunnel is running.
+     *
+     * The URL is not deleted on shutdown: with a reserved ngrok domain two
+     * tunnels share the same URL, and one stopping used to cut the other off.
+     */
+    private function heartbeat(): void
+    {
+        if ($this->url !== null) {
+            Cache::put(DarajaClient::TUNNEL_URL_CACHE_KEY, $this->url, self::URL_TTL_SECONDS);
+        }
     }
 
     /** Waits without exiting, so `concurrently --kill-others` leaves the rest of the dev stack alone. */
@@ -209,8 +240,6 @@ class MpesaTunnel extends Command
 
     private function shutdown(): void
     {
-        Cache::forget(DarajaClient::TUNNEL_URL_CACHE_KEY);
-
         if ($this->ngrok?->running()) {
             $this->ngrok->signal(SIGTERM);
         }

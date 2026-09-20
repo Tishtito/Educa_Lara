@@ -290,7 +290,11 @@ Route::middleware(['auth:sanctum', 'password.changed'])->prefix('platform')->gro
 // M-Pesa (Daraja) callbacks: no sign-in and no tenant; the URL carries
 // MPESA_WEBHOOK_SECRET instead (MpesaWebhookController). Not throttled:
 // Safaricom calls from a handful of IPs and retries what it cannot deliver.
-Route::prefix('webhooks/mpesa/{secret}')->group(function (): void {
+//
+// "pay", not "mpesa": Safaricom refuses to register a callback URL containing
+// the words mpesa, safaricom, exe or sql ("Invalid ValidationURL - URL has the
+// word MPESA").
+Route::prefix('webhooks/pay/{secret}')->group(function (): void {
     Route::post('stk', [MpesaWebhookController::class, 'stk']);
     Route::post('c2b/validation', [MpesaWebhookController::class, 'validation']);
     Route::post('c2b/confirmation', [MpesaWebhookController::class, 'confirmation']);

@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Domain\Billing\Models\SchoolSubscription;
 use App\Domain\Billing\Models\SubscriptionPayment;
+use App\Domain\Billing\Mpesa\DarajaClient;
 use App\Domain\People\Models\Role;
 use App\Domain\People\Models\User;
 use App\Domain\Tenancy\Models\School;
@@ -92,7 +93,7 @@ class MpesaPaymentsTest extends TestCase
 
         $this->app['auth']->forgetGuards();
 
-        return $this->postJson("/api/webhooks/mpesa/{$secret}/stk", ['Body' => ['stkCallback' => $callback]]);
+        return $this->postJson("/api/webhooks/pay/{$secret}/stk", ['Body' => ['stkCallback' => $callback]]);
     }
 
     private function subscription(): SchoolSubscription
@@ -119,11 +120,29 @@ class MpesaPaymentsTest extends TestCase
                 && $request['BusinessShortCode'] === '174379'
                 && $request['AccountReference'] === 'hilltop'
                 && $request['Password'] === base64_encode('174379passkey'.$request['Timestamp'])
-                && $request['CallBackURL'] === 'https://api.educa.test/api/webhooks/mpesa/'.self::SECRET.'/stk'
+                && $request['CallBackURL'] === 'https://api.educa.test/api/webhooks/pay/'.self::SECRET.'/stk'
                 && $request->hasHeader('Authorization', 'Bearer tok');
         });
 
         $this->assertDatabaseHas('subscription_payments', ['school_id' => $this->school->id, 'checkout_request_id' => 'ws_CO_1', 'status' => 'pending', 'initiated_by' => $this->admin->id]);
+    }
+
+    /**
+     * Safaricom's URL validator refuses to register a callback URL containing
+     * "mpesa", "safaricom", "exe" or "sql" ("Invalid ValidationURL - URL has
+     * the word MPESA"), which is why the path is /api/webhooks/pay/....
+     */
+    public function test_callback_urls_avoid_the_words_safaricom_refuses(): void
+    {
+        $daraja = app(DarajaClient::class);
+
+        foreach (['stk', 'c2b/validation', 'c2b/confirmation'] as $path) {
+            $url = mb_strtolower($daraja->webhookUrl($path));
+
+            foreach (['mpesa', 'safaricom', 'exe', 'sql'] as $word) {
+                $this->assertStringNotContainsString($word, $url, "The callback URL must not contain \"{$word}\": Safaricom refuses to register it.");
+            }
+        }
     }
 
     public function test_a_successful_callback_renews_and_sends_a_receipt(): void
@@ -242,9 +261,9 @@ class MpesaPaymentsTest extends TestCase
             'BusinessShortCode' => '174379', 'BillRefNumber' => $account, 'MSISDN' => '254700000001', 'FirstName' => 'Jane', 'LastName' => 'Wanjiru',
         ];
 
-        $this->postJson('/api/webhooks/mpesa/'.self::SECRET.'/c2b/validation', $payload)->assertExactJson(['ResultCode' => 0, 'ResultDesc' => 'Accepted']);
+        $this->postJson('/api/webhooks/pay/'.self::SECRET.'/c2b/validation', $payload)->assertExactJson(['ResultCode' => 0, 'ResultDesc' => 'Accepted']);
 
-        return $this->postJson('/api/webhooks/mpesa/'.self::SECRET.'/c2b/confirmation', $payload);
+        return $this->postJson('/api/webhooks/pay/'.self::SECRET.'/c2b/confirmation', $payload);
     }
 
     public function test_a_paybill_payment_with_the_school_code_is_credited(): void

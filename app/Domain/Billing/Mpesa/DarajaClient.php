@@ -42,9 +42,18 @@ class DarajaClient
             : 'https://sandbox.safaricom.co.ke';
     }
 
+    /**
+     * Where Safaricom sends a callback. "pay", never "mpesa": Safaricom refuses
+     * to register a URL containing mpesa, safaricom, exe or sql.
+     */
     public function webhookUrl(string $path): string
     {
-        return $this->callbackBaseUrl().'/api/webhooks/mpesa/'.config('services.mpesa.webhook_secret').'/'.$path;
+        // Without a base this would be a relative URL, which Safaricom rejects
+        // as "Invalid ValidationURL" — an error that says nothing about the cause.
+        $base = $this->callbackBaseUrl()
+            ?? throw new MpesaException('No public callback URL: set MPESA_CALLBACK_BASE_URL, or start the development tunnel (`composer run dev`).');
+
+        return $base.'/api/webhooks/pay/'.config('services.mpesa.webhook_secret').'/'.$path;
     }
 
     /**

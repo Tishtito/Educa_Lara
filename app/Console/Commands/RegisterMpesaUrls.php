@@ -26,7 +26,7 @@ class RegisterMpesaUrls extends Command
             return self::FAILURE;
         }
 
-        $this->line('Confirmation: '.preg_replace('#/mpesa/[^/]+/#', '/mpesa/<secret>/', $daraja->webhookUrl('c2b/confirmation')));
+        $this->line('Confirmation: '.preg_replace('#/webhooks/pay/[^/]+/#', '/webhooks/pay/<secret>/', $daraja->webhookUrl('c2b/confirmation')));
 
         $response = $daraja->registerC2bUrls();
 

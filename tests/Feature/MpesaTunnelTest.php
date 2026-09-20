@@ -62,7 +62,7 @@ class MpesaTunnelTest extends TestCase
 
         $this->artisan('mpesa:tunnel', ['--once' => true])
             ->expectsOutputToContain('Tunnel: https://erupt-example.ngrok-free.dev → 127.0.0.1:8000')
-            ->expectsOutputToContain('M-Pesa STK callback: https://erupt-example.ngrok-free.dev/api/webhooks/mpesa/<secret>/stk')
+            ->expectsOutputToContain('M-Pesa STK callback: https://erupt-example.ngrok-free.dev/api/webhooks/pay/<secret>/stk')
             ->expectsOutputToContain('Sandbox Paybill URLs registered with Safaricom.')
             ->assertSuccessful();
 
@@ -73,7 +73,24 @@ class MpesaTunnelTest extends TestCase
         $this->assertTrue($daraja->configured());
 
         Http::assertSent(fn (HttpRequest $request) => str_ends_with($request->url(), '/registerurl')
-            && $request['ConfirmationURL'] === 'https://erupt-example.ngrok-free.dev/api/webhooks/mpesa/local-secret/c2b/confirmation');
+            && $request['ConfirmationURL'] === 'https://erupt-example.ngrok-free.dev/api/webhooks/pay/local-secret/c2b/confirmation');
+    }
+
+    /**
+     * With a reserved domain two tunnels share one URL, so stopping one used to
+     * cut the other off. The URL now lives on a heartbeat instead.
+     */
+    public function test_the_cached_url_expires_on_its_own_rather_than_being_deleted_on_shutdown(): void
+    {
+        $this->local();
+        $this->fakeNgrok();
+
+        $this->artisan('mpesa:tunnel', ['--once' => true])->assertSuccessful();
+
+        $this->assertSame('https://erupt-example.ngrok-free.dev', Cache::get(DarajaClient::TUNNEL_URL_CACHE_KEY));
+
+        $this->travel(3)->minutes();
+        $this->assertNull(Cache::get(DarajaClient::TUNNEL_URL_CACHE_KEY));
     }
 
     public function test_a_reserved_domain_is_passed_to_ngrok(): void
@@ -126,6 +143,13 @@ class MpesaTunnelTest extends TestCase
             ->assertSuccessful();
 
         $this->assertNull(Cache::get(DarajaClient::TUNNEL_URL_CACHE_KEY));
+    }
+
+    public function test_a_callback_url_is_refused_outright_when_there_is_no_public_base(): void
+    {
+        $this->expectExceptionMessage('No public callback URL');
+
+        app(DarajaClient::class)->webhookUrl('stk');   // testing environment, no tunnel
     }
 
     public function test_the_tunnel_url_is_ignored_outside_local_and_a_configured_base_url_wins(): void

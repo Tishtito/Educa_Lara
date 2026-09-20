@@ -63,7 +63,7 @@ the account number.
 ```
 Admin app ─POST /billing/stk {phone}─▶ API ─stkpush─▶ Safaricom ─PIN prompt─▶ phone
                                         │ pending payment (CheckoutRequestID)
-Safaricom ─POST /webhooks/mpesa/{secret}/stk─▶ API: ResultCode 0 + same amount → credit
+Safaricom ─POST /webhooks/pay/{secret}/stk─▶ API: ResultCode 0 + same amount → credit
 Admin app ─GET /billing/payments/{id} (every 3 s)─▶ settled? (after 60 s the API asks Safaricom itself)
 ```
 
@@ -91,6 +91,9 @@ bursar, or the head teacher's phone.
 ### Webhook security
 
 Daraja does not sign its callbacks:
+- The path is `/api/webhooks/pay/…`, never `.../mpesa/...`: Safaricom refuses to
+  register a callback URL containing "mpesa", "safaricom", "exe" or "sql"
+  ("Invalid ValidationURL - URL has the word MPESA").
 - Every webhook URL contains `MPESA_WEBHOOK_SECRET`, compared in constant time.
   A wrong secret gets a plain 404.
 - `MPESA_ALLOWED_IPS` optionally limits callers to Safaricom's IPs. Set it in
@@ -160,6 +163,14 @@ Steps:
    arriving through the tunnel show at http://127.0.0.1:4040.
 
 **Rules and failures:**
+- **"Service is currently unreachable" (500.003.1001)** when registering the
+  Paybill URLs is Safaricom's sandbox being down for C2B, not a problem here: it
+  answers the same for any URL, including `https://example.com`. STK push (the
+  Pay with M-Pesa button) does not depend on registration, so payments can still
+  be tested. Restart `composer run dev` later to register again.
+- **"Invalid ValidationURL - URL has the word MPESA"** means a callback path
+  contains a word Safaricom's validator blocks (mpesa, safaricom, exe, sql).
+  That is why the path is `/api/webhooks/pay/…`; `MpesaPaymentsTest` pins it.
 - **Local only:** the tunnel is ignored outside `APP_ENV=local`, and the command
   refuses to start there.
 - **Never exits:** if ngrok is missing or its authtoken is wrong, the pane says
