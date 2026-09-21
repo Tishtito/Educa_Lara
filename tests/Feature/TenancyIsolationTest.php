@@ -56,7 +56,7 @@ class TenancyIsolationTest extends TestCase
 
         // No school_id passed: BelongsToSchool takes it from the resolved tenant.
         $student = Student::create([
-            'admission_no' => 'ADM-001',
+            'assessment_no' => 'ADM-001',
             'first_name' => 'Ada',
             'last_name' => 'Lovelace',
             'status' => 'active',
@@ -76,7 +76,7 @@ class TenancyIsolationTest extends TestCase
 
         $student = Student::create([
             'school_id' => $b->id,
-            'admission_no' => 'ADM-002',
+            'assessment_no' => 'ADM-002',
             'first_name' => 'Grace',
             'last_name' => 'Hopper',
             'status' => 'active',

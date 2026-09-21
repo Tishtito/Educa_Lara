@@ -174,7 +174,7 @@ lists they need to check; never send the file outside the school.
 | `student_classes` | One enrolment per pupil per year. Two rows in a year: the one that year's results link to wins, then the newest (`origin = resolved_duplicate`) |
 | `exam_results.student_class_id` | Ignored: a result goes to the pupil's enrolment **in the exam's year** (legacy linked 2026 results to 2025 rows). No row that year → placement inferred from the nearest row (`origin = inferred_year`) |
 | Class strings (`grade_2east`, `GRADE 3 EAST`, `7`) | One class per grade and stream, spellings kept as class aliases. `Completed` = left the section |
-| `students.name` | First / middle / last, split losslessly. Admission number `LEG-L-00042` (legacy had none); editable, never overwritten by a later run |
+| `students.name` | First / middle / last, split losslessly. Assessment number `LEG-L-00042` (legacy had none); editable, never overwritten by a later run |
 | Mark columns | Entered scores. Single-paper percentages out of 100; strands and papers raw, out of `marks_out_of` or the profile default (JSS papers 50). Stray lower columns (`LS/SP`, `WRI`, `Integrated`) kept as not-counted subjects |
 | Curriculum changes | Chosen per exam **and class** by which columns hold marks: lower 2026 English = Reading + Grammar and Kiswahili = Kusoma + Lugha where those exist, otherwise the single mark |
 | Totals, means, positions, combined marks | Recomputed. Legacy totals and positions kept on each result (`legacy_*`) for comparison. Ranking uses `legacy_ordinal` ties |

@@ -283,7 +283,7 @@ class ReportCardContentTest extends TestCase
 
         // Double the class: copy each pupil's result and scores onto a new pupil.
         foreach (StudentEnrolment::query()->where('class_id', $this->class->id)->get() as $i => $e) {
-            $student = Student::create(['school_id' => $this->school->id, 'admission_no' => "COPY-{$i}", 'first_name' => 'Copy', 'last_name' => "Pupil {$i}", 'status' => 'active']);
+            $student = Student::create(['school_id' => $this->school->id, 'assessment_no' => "COPY-{$i}", 'first_name' => 'Copy', 'last_name' => "Pupil {$i}", 'status' => 'active']);
             $copy = StudentEnrolment::create(['school_id' => $this->school->id, 'student_id' => $student->id, 'academic_year_id' => $e->academic_year_id, 'class_id' => $e->class_id, 'status' => 'active']);
 
             foreach (ExamSubjectScore::query()->where('enrolment_id', $e->id)->get() as $score) {

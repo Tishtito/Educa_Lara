@@ -101,7 +101,7 @@ class MarklistRepository
                 'r.subjects_counted',
                 'r.is_complete',
                 'st.full_name',
-                'st.admission_no',
+                'st.assessment_no',
                 'gb.abbreviation as mean_band',
                 'gb.label as mean_band_label',
             ]);
@@ -203,7 +203,7 @@ class MarklistRepository
                 'r.grade_cohort_size',
                 'r.is_complete',
                 'st.full_name',
-                'st.admission_no',
+                'st.assessment_no',
                 'gb.abbreviation as mean_band',
             ]);
     }

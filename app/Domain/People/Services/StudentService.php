@@ -114,7 +114,7 @@ class StudentService
     public function studentAttributes(array $data): array
     {
         return collect($data)->only([
-            'admission_no', 'upi', 'first_name', 'middle_name', 'last_name', 'gender', 'date_of_birth', 'guardian_name', 'guardian_phone',
+            'assessment_no', 'upi', 'first_name', 'middle_name', 'last_name', 'gender', 'date_of_birth', 'guardian_name', 'guardian_phone',
         ])->all();
     }
 }

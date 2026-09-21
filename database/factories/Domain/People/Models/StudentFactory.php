@@ -21,7 +21,7 @@ class StudentFactory extends Factory
     {
         return [
             'school_id' => School::factory(),
-            'admission_no' => fake()->unique()->numerify('ADM####'),
+            'assessment_no' => fake()->unique()->numerify('ADM####'),
             'upi' => null,
             'first_name' => fake()->firstName(),
             'middle_name' => fake()->firstName(),

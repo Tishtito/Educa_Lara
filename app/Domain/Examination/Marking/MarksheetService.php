@@ -130,7 +130,7 @@ class MarksheetService
                 return [
                     'enrolment_id' => $enrolment->id,
                     'student_id' => $enrolment->student_id,
-                    'admission_no' => $enrolment->student->admission_no,
+                    'assessment_no' => $enrolment->student->assessment_no,
                     'name' => $enrolment->student->full_name,
                     'marks' => $papers->map(function (SubjectPaper $p) use ($enrolment, $entered) {
                         $row = $entered->get($enrolment->id.':'.$p->id);

@@ -48,7 +48,7 @@ class AnalysisController extends Controller
 
         $students = $repository->gradeStudents($exam->getKey(), $grade->id)->map(fn (object $s) => [
             'student_id' => $s->student_id,
-            'admission_no' => $s->admission_no,
+            'assessment_no' => $s->assessment_no,
             'name' => $s->full_name,
             'class_id' => $s->class_id,
             'class_name' => $s->class_name,

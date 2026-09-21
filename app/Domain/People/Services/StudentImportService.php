@@ -32,8 +32,8 @@ class StudentImportService
             ->keyBy(fn (SchoolClass $c) => $this->key($c->name));
 
         $existing = Student::query()->withTrashed()
-            ->whereIn('admission_no', collect($rows)->pluck('admission_no')->filter()->map(fn ($v) => trim((string) $v)))
-            ->pluck('admission_no')
+            ->whereIn('assessment_no', collect($rows)->pluck('assessment_no')->filter()->map(fn ($v) => trim((string) $v)))
+            ->pluck('assessment_no')
             ->map(fn ($v) => Str::lower($v))
             ->flip();
 
@@ -50,17 +50,17 @@ class StudentImportService
             $row = array_map(fn ($v) => is_string($v) ? trim(preg_replace('/\s+/', ' ', $v) ?? '') : $v, $row);
             [$first, $middle, $last] = $this->names($row);
 
-            $admission = (string) ($row['admission_no'] ?? '');
-            if ($admission === '') {
-                $fail('admission_no', 'Admission number is missing.');
-            } elseif (mb_strlen($admission) > 40) {
-                $fail('admission_no', 'Admission number is longer than 40 characters.');
-            } elseif (isset($existing[Str::lower($admission)])) {
-                $fail('admission_no', "A pupil with admission number {$admission} already exists.");
-            } elseif (isset($seen[Str::lower($admission)])) {
-                $fail('admission_no', "Admission number {$admission} appears twice in the file (row {$seen[Str::lower($admission)]}).");
+            $assessment = (string) ($row['assessment_no'] ?? '');
+            if ($assessment === '') {
+                $fail('assessment_no', 'Assessment number is missing. The column must be headed “Assessment No”.');
+            } elseif (mb_strlen($assessment) > 40) {
+                $fail('assessment_no', 'Assessment number is longer than 40 characters.');
+            } elseif (isset($existing[Str::lower($assessment)])) {
+                $fail('assessment_no', "A pupil with assessment number {$assessment} already exists.");
+            } elseif (isset($seen[Str::lower($assessment)])) {
+                $fail('assessment_no', "Assessment number {$assessment} appears twice in the file (row {$seen[Str::lower($assessment)]}).");
             } else {
-                $seen[Str::lower($admission)] = $line;
+                $seen[Str::lower($assessment)] = $line;
             }
 
             if ($first === null || $last === null) {
@@ -83,7 +83,7 @@ class StudentImportService
             }
 
             $clean[] = [
-                'admission_no' => $admission,
+                'assessment_no' => $assessment,
                 'first_name' => $first,
                 'middle_name' => $middle,
                 'last_name' => $last,

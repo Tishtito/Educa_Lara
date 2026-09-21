@@ -13,7 +13,7 @@ use App\Domain\People\Models\Student;
 /**
  * Students, with one record per child across the three sections.
  *
- * Legacy has no admission numbers (pno is empty in lower and JSS and absent in
+ * Legacy has no assessment numbers (pno is empty in lower and JSS and absent in
  * upper), so the same child in two sections can only be recognised by name and
  * by a move that makes sense. Decided with the school:
  *
@@ -26,7 +26,7 @@ use App\Domain\People\Models\Student;
  *   - everything else is a separate student, including children who share a name
  *     within one section.
  *
- * Admission numbers are generated (LEG-L-00012) on creation only, so a real
+ * Assessment numbers are generated (LEG-L-00012) on creation only, so a real
  * number the school enters later is never overwritten by a re-run.
  */
 final class StudentStep implements ImportStep
@@ -173,7 +173,7 @@ final class StudentStep implements ImportStep
         if ($existingId === null) {
             $student = Student::create($attributes + [
                 'school_id' => $context->school->id,
-                'admission_no' => sprintf('LEG-%s-%05d', $earliest['source']->admissionPrefix, $earliest['row']['student_id']),
+                'assessment_no' => sprintf('LEG-%s-%05d', $earliest['source']->admissionPrefix, $earliest['row']['student_id']),
             ]);
             $context->report->count($this->name(), 'students created');
         } else {

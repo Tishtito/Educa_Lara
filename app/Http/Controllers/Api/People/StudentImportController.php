@@ -13,13 +13,13 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
-/** Bulk pupil operations: spreadsheet admission and end-of-year promotion. */
+/** Bulk pupil operations: admitting a spreadsheet of pupils, and end-of-year promotion. */
 class StudentImportController extends Controller
 {
     public function __construct(private readonly TenantManager $tenancy) {}
 
     /**
-     * POST /students/import {academic_year_id?, dry_run, rows: [{admission_no, first_name|name, …, class}]}
+     * POST /students/import {academic_year_id?, dry_run, rows: [{assessment_no, first_name|name, …, class}]}
      * The client parses the spreadsheet; the server validates and admits.
      */
     public function import(Request $request, StudentImportService $imports): JsonResponse

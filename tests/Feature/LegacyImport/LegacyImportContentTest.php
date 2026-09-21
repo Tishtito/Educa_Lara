@@ -87,21 +87,21 @@ class LegacyImportContentTest extends LegacyImportTestCase
         $this->assertSame((int) $this->placement($student, 2026)->id, (int) $result->enrolment_id);
     }
 
-    // --- 3. admission numbers --------------------------------------------------
+    // --- 3. assessment numbers --------------------------------------------------
 
-    public function test_students_get_generated_admission_numbers_that_a_rerun_never_overwrites(): void
+    public function test_students_get_generated_assessment_numbers_that_a_rerun_never_overwrites(): void
     {
         $this->importAnswering();
         $student = $this->student('lower', 2);
-        $this->assertSame('LEG-L-00002', $student->admission_no);
+        $this->assertSame('LEG-L-00002', $student->assessment_no);
 
-        $this->inSchool(fn () => $student->update(['admission_no' => 'REAL-123']));
+        $this->inSchool(fn () => $student->update(['assessment_no' => 'REAL-123']));
         LegacyFixture::update(LegacyFixture::LOWER, 'students', ['student_id' => 2], ['name' => 'Baraka Mwangi Kamau']);
         $this->import();
 
         $student = $this->student('lower', 2);
         $this->assertSame('Kamau', $student->last_name);   // legacy edits still flow in
-        $this->assertSame('REAL-123', $student->admission_no);
+        $this->assertSame('REAL-123', $student->assessment_no);
     }
 
     public function test_the_name_is_split_losslessly(): void

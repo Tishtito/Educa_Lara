@@ -31,7 +31,7 @@ class LegacyImportRunTest extends LegacyImportTestCase
     private function fingerprint(): array
     {
         return $this->inSchool(fn () => [
-            'students' => Student::query()->orderBy('id')->get(['id', 'first_name', 'middle_name', 'last_name', 'admission_no', 'status'])->toArray(),
+            'students' => Student::query()->orderBy('id')->get(['id', 'first_name', 'middle_name', 'last_name', 'assessment_no', 'status'])->toArray(),
             'enrolments' => StudentEnrolment::query()->orderBy('id')->get(['id', 'student_id', 'class_id', 'academic_year_id', 'origin'])->toArray(),
             'users' => User::query()->where('school_id', $this->school->id)->orderBy('id')->get(['id', 'username', 'name', 'password'])->toArray(),
             'exams' => Exam::query()->orderBy('id')->get(['id', 'name', 'status', 'sequence', 'academic_year_id'])->toArray(),

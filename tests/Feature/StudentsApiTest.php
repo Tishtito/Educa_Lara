@@ -72,31 +72,45 @@ class StudentsApiTest extends TestCase
     {
         $this->actingAs($this->admin, 'sanctum')
             ->postJson('/api/students', [
-                'admission_no' => ' GAT-100 ', 'first_name' => 'Achieng', 'middle_name' => '', 'last_name' => 'Odhiambo',
+                'assessment_no' => ' GAT-100 ', 'first_name' => 'Achieng', 'middle_name' => '', 'last_name' => 'Odhiambo',
                 'gender' => 'female', 'class_id' => $this->blue4->id,
             ])
             ->assertCreated()
             ->assertJsonPath('data.full_name', 'Achieng Odhiambo')
-            ->assertJsonPath('data.admission_no', 'GAT-100')
+            ->assertJsonPath('data.assessment_no', 'GAT-100')
             ->assertJsonPath('data.enrolments.0.class_name', 'Grade 4 Blue')
             ->assertJsonPath('data.enrolments.0.academic_year', '2026');
     }
 
-    public function test_admission_numbers_are_unique_in_the_school(): void
+    /** CBC schools say "assessment number"; a file still headed "Admission No" says so plainly. */
+    public function test_an_import_with_the_old_admission_column_says_which_header_to_use(): void
     {
-        $this->pupil($this->blue4, ['admission_no' => 'GAT-1']);
+        $response = $this->actingAs($this->admin, 'sanctum')
+            ->postJson('/api/students/import', [
+                'dry_run' => true,
+                'rows' => [['admission_no' => 'GAT-500', 'first_name' => 'Nia', 'last_name' => 'Wambui', 'class' => $this->blue4->name]],
+            ])
+            ->assertOk();
+
+        $this->assertSame('assessment_no', $response->json('data.errors.0.field'));
+        $this->assertStringContainsString('Assessment No', $response->json('data.errors.0.message'));
+    }
+
+    public function test_assessment_numbers_are_unique_in_the_school(): void
+    {
+        $this->pupil($this->blue4, ['assessment_no' => 'GAT-1']);
 
         $this->actingAs($this->admin, 'sanctum')
-            ->postJson('/api/students', ['admission_no' => 'GAT-1', 'first_name' => 'A', 'last_name' => 'B', 'class_id' => $this->blue4->id])
+            ->postJson('/api/students', ['assessment_no' => 'GAT-1', 'first_name' => 'A', 'last_name' => 'B', 'class_id' => $this->blue4->id])
             ->assertStatus(422)
-            ->assertJsonValidationErrors('admission_no');
+            ->assertJsonValidationErrors('assessment_no');
     }
 
     public function test_the_list_searches_and_filters_by_class_for_a_year(): void
     {
         $red4 = $this->makeClass('G4', 'Red', 'Grade 4 Red');
-        $this->pupil($this->blue4, ['first_name' => 'Brian', 'last_name' => 'Kemboi', 'admission_no' => 'A1']);
-        $this->pupil($red4, ['first_name' => 'Cynthia', 'last_name' => 'Mwangi', 'admission_no' => 'A2']);
+        $this->pupil($this->blue4, ['first_name' => 'Brian', 'last_name' => 'Kemboi', 'assessment_no' => 'A1']);
+        $this->pupil($red4, ['first_name' => 'Cynthia', 'last_name' => 'Mwangi', 'assessment_no' => 'A2']);
         Student::factory()->create(['school_id' => $this->school->id, 'first_name' => 'Unplaced', 'last_name' => 'Pupil']);
         Student::factory()->create(['school_id' => School::factory()->create()->id]);
 
@@ -191,12 +205,12 @@ class StudentsApiTest extends TestCase
 
     public function test_an_import_is_checked_row_by_row_and_writes_nothing_until_every_row_is_valid(): void
     {
-        $this->pupil($this->blue4, ['admission_no' => 'EXISTS']);
+        $this->pupil($this->blue4, ['assessment_no' => 'EXISTS']);
         $rows = [
-            ['admission_no' => 'N1', 'name' => 'Brian Kipchoge Kemboi', 'gender' => 'M', 'date_of_birth' => '21/03/2016', 'class' => 'grade 4  blue'],
-            ['admission_no' => 'N1', 'first_name' => 'Dup', 'last_name' => 'Row', 'class' => 'Grade 4 Blue'],
-            ['admission_no' => 'EXISTS', 'first_name' => 'Old', 'last_name' => 'Pupil', 'class' => 'Grade 4 Blue'],
-            ['admission_no' => 'N3', 'first_name' => 'No', 'last_name' => 'Class', 'class' => 'Grade 9 Nowhere', 'gender' => 'x', 'date_of_birth' => 'soon'],
+            ['assessment_no' => 'N1', 'name' => 'Brian Kipchoge Kemboi', 'gender' => 'M', 'date_of_birth' => '21/03/2016', 'class' => 'grade 4  blue'],
+            ['assessment_no' => 'N1', 'first_name' => 'Dup', 'last_name' => 'Row', 'class' => 'Grade 4 Blue'],
+            ['assessment_no' => 'EXISTS', 'first_name' => 'Old', 'last_name' => 'Pupil', 'class' => 'Grade 4 Blue'],
+            ['assessment_no' => 'N3', 'first_name' => 'No', 'last_name' => 'Class', 'class' => 'Grade 9 Nowhere', 'gender' => 'x', 'date_of_birth' => 'soon'],
         ];
 
         $this->actingAs($this->admin, 'sanctum');
@@ -213,15 +227,15 @@ class StudentsApiTest extends TestCase
             ->assertJsonPath('data.preview.0.class_name', 'Grade 4 Blue');
 
         $fields = collect($response->json('data.errors'))->map(fn ($e) => "{$e['row']}:{$e['field']}")->all();
-        $this->assertEqualsCanonicalizing(['2:admission_no', '3:admission_no', '4:class', '4:gender', '4:date_of_birth'], $fields);
-        $this->assertDatabaseMissing('students', ['admission_no' => 'N1']);
+        $this->assertEqualsCanonicalizing(['2:assessment_no', '3:assessment_no', '4:class', '4:gender', '4:date_of_birth'], $fields);
+        $this->assertDatabaseMissing('students', ['assessment_no' => 'N1']);
     }
 
     public function test_a_valid_import_admits_and_enrols_everyone(): void
     {
         $rows = [
-            ['admission_no' => 'N1', 'first_name' => 'Brian', 'last_name' => 'Kemboi', 'class' => 'Grade 4 Blue'],
-            ['admission_no' => 'N2', 'first_name' => 'Cynthia', 'last_name' => 'Mwangi', 'class' => 'Grade 4 Blue', 'guardian_phone' => '0712 000 111'],
+            ['assessment_no' => 'N1', 'first_name' => 'Brian', 'last_name' => 'Kemboi', 'class' => 'Grade 4 Blue'],
+            ['assessment_no' => 'N2', 'first_name' => 'Cynthia', 'last_name' => 'Mwangi', 'class' => 'Grade 4 Blue', 'guardian_phone' => '0712 000 111'],
         ];
 
         $this->actingAs($this->admin, 'sanctum');

@@ -76,7 +76,7 @@ class MarkingApiTest extends TestCase
 
         foreach (['Otieno', 'Wairimu', 'Kiprono'] as $i => $last) {
             $student = Student::create([
-                'school_id' => $this->school->id, 'admission_no' => 'GRN-00'.($i + 1),
+                'school_id' => $this->school->id, 'assessment_no' => 'GRN-00'.($i + 1),
                 'first_name' => 'Pupil', 'last_name' => $last, 'status' => 'active',
             ]);
             StudentEnrolment::create([

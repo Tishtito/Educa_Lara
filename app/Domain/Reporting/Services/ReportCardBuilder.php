@@ -171,7 +171,7 @@ class ReportCardBuilder
                 'student' => [
                     'student_id' => $enrolment->student_id,
                     'enrolment_id' => $enrolment->id,
-                    'admission_no' => $enrolment->student->admission_no,
+                    'assessment_no' => $enrolment->student->assessment_no,
                     'name' => $enrolment->student->full_name,
                 ],
                 'rows' => $this->rows($subjects, $papersInExam, $columns, $enrolmentId, $scoreIndex, $bands, $layout),

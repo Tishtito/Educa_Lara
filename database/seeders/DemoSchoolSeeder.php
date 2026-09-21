@@ -228,10 +228,10 @@ class DemoSchoolSeeder extends Seeder
         $enrolments = [];
 
         foreach ($names as $index => [$first, $middle, $last]) {
-            $admissionNo = sprintf('%s-%03d', strtoupper(substr($school->slug, 0, 3)), $index + 1);
+            $assessmentNo = sprintf('%s-%03d', strtoupper(substr($school->slug, 0, 3)), $index + 1);
 
             $student = Student::updateOrCreate(
-                ['school_id' => $school->id, 'admission_no' => $admissionNo],
+                ['school_id' => $school->id, 'assessment_no' => $assessmentNo],
                 [
                     'first_name' => $first,
                     'middle_name' => $middle,

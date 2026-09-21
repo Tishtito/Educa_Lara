@@ -21,6 +21,7 @@ final class SourceContext
         public readonly Level $level,
         public readonly LegacyProfile $profile,
         public readonly LegacySourceRepository $repository,
+        // Names the legacy system a pupil came from; it prefixes the generated assessment number.
         public readonly string $admissionPrefix,
     ) {}
 

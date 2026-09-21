@@ -45,8 +45,8 @@ database-per-tenant, and not `stancl/tenancy` — the kernel is hand-written in
 Every tenant-owned table carries
 `foreignId('school_id')->constrained()->cascadeOnDelete()`, and **every unique
 index on such a table is prefixed with `school_id`** — for example
-`unique(['school_id', 'admission_no'])`. That prefixing is what lets two schools
-each have an admission number `ADM-001`.
+`unique(['school_id', 'assessment_no'])`. That prefixing is what lets two schools
+each have an assessment number `ADM-001`.
 
 ### The three model categories
 
@@ -569,7 +569,7 @@ student).
 | Legacy import: `legacy:import` / `legacy:review` / `legacy:verify`, forced password change | done, tested on a synthetic fixture of every measured production quirk; runbook `docs/legacy-import.md` |
 | Admin API for the React admin app (`../Educa_Admin`): CORS for the PWA and Capacitor origins, lookup lists (levels, grades, years, streams, classes), platform school list | done, tested |
 | School set-up API: academic years + terms (create, current, delete-if-unused), streams, classes; subjects, level subjects + papers (the catalogue; existing papers and the combination rule frozen once examined, adding a paper stays open because each exam names its own); grading scales + bands (contiguous 0-100, platform scales read-only, bands on published results immutable, live exams recomputed via `ResultsInvalidation`); exam edit (structure draft-only, name/dates until published), delete untouched drafts, choose subjects | done, tested |
-| People API: staff accounts (temporary passwords, forced change, last-admin guard), class teacher and examiner assignments (copy between years, inferred legacy grants confirmed on save), pupils (admission, move, status, results history, delete-if-unrecorded), CSV import (all-or-nothing, dry run), year-end promotion (dry run on the same code path, never re-places a pupil) | done, tested |
+| People API: staff accounts (temporary passwords, forced change, last-admin guard), class teacher and examiner assignments (copy between years, inferred legacy grants confirmed on save), pupils (admit, move, status, results history, delete-if-unrecorded; assessment numbers unique per school), CSV import (all-or-nothing, dry run), year-end promotion (dry run on the same code path, never re-places a pupil) | done, tested |
 | Analytics (read-only): grade-wide stream list, exam statistics (MSS by class/grade/level/school, subject means), dashboard with set-up gaps; school profile + logo upload (feeds report card PDFs); platform school provisioning and suspension | done, tested |
 | Staff portal API for `../Educa_Portal`: my assignments, my exams with marking progress (`MarkingOverview`, shared with the marking tab), class-teacher pupils (roster, admit into own class, move out, profile and results of pupils taught — `ClassTeachingAccess`); mark list now limited to the class teacher's own classes and to classes in the exam | done, tested |
 | Email: `EducaMail` base (queued after commit, school-branded sender, reply-to school, delivery log, encrypted secrets), `mail:test`; staff invitations by email (resend/cancel, first admin of a new school), forgot-password links, password-changed notices — `docs/email.md` | done, tested |

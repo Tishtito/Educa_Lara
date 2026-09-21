@@ -72,7 +72,7 @@ class MarklistController extends Controller
 
             return [
                 'student_id' => $student->student_id,
-                'admission_no' => $student->admission_no,
+                'assessment_no' => $student->assessment_no,
                 'name' => $student->full_name,
                 'total_marks' => $this->decimal($student->total_marks),
                 'mean_marks' => $this->decimal($student->mean_marks),
