@@ -102,6 +102,15 @@ Daraja does not sign its callbacks:
   asked.
 - Callbacks are always answered `{"ResultCode":0}` so Safaricom stops retrying.
   Failures are logged, and reconciliation picks STK payments up again.
+- **JSON or not:** the body is read as JSON, and as ordinary form input when
+  that fails, so a proxy sending `application/x-www-form-urlencoded` still works.
+- **A body we cannot read** is accepted and logged once as "[mpesa] Webhook
+  called with a body we could not read". Every webhook warning carries the
+  caller's IP, the content type, the size and the first 200 characters of the
+  body, with the URL secret replaced and runs of six or more digits masked, so
+  phone numbers and receipts never reach the log (`Mpesa\WebhookLog`). Those
+  warnings mean somebody called the URL with something unexpected — usually a
+  test — never that a payment was lost.
 
 ## Emails
 

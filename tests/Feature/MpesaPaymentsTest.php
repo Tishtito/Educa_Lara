@@ -16,6 +16,7 @@ use Illuminate\Http\Client\Request as HttpRequest;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
@@ -277,6 +278,66 @@ class MpesaPaymentsTest extends TestCase
 
         $this->c2b('hilltop', 10000)->assertOk();   // the same receipt again
         $this->assertSame(1, SubscriptionPayment::query()->count());
+    }
+
+    public function test_a_form_encoded_confirmation_is_read_like_a_json_one(): void
+    {
+        $this->app['auth']->forgetGuards();
+
+        $this->post('/api/webhooks/pay/'.self::SECRET.'/c2b/confirmation', [
+            'TransID' => 'TIK9FORM01', 'TransTime' => '20260919120000', 'TransAmount' => '10.00',
+            'BusinessShortCode' => '600996', 'BillRefNumber' => 'hilltop', 'MSISDN' => '254700000001', 'FirstName' => 'Jane',
+        ])->assertOk()->assertExactJson(['ResultCode' => 0, 'ResultDesc' => 'Accepted']);
+
+        $payment = SubscriptionPayment::query()->sole();
+        $this->assertSame(['paybill', 'TIK9FORM01', 10], [$payment->method, $payment->mpesa_receipt, $payment->amount_kes]);
+        $this->assertSame(2000 + 10, (int) $this->subscription()->credit_kes);
+    }
+
+    /**
+     * A body we cannot read (an empty probe, a proxy sending something else) is
+     * accepted so Safaricom stops retrying, and logged with enough to identify
+     * the caller — but never with a whole phone number or receipt in it.
+     */
+    public function test_an_unreadable_body_is_accepted_and_logged_with_the_caller_but_without_personal_data(): void
+    {
+        Log::spy();
+        $this->app['auth']->forgetGuards();
+
+        foreach (['stk', 'c2b/validation', 'c2b/confirmation'] as $path) {
+            $this->call('POST', '/api/webhooks/pay/'.self::SECRET.'/'.$path, [], [], [], ['CONTENT_TYPE' => 'text/plain'], '')
+                ->assertOk()
+                ->assertExactJson(['ResultCode' => 0, 'ResultDesc' => 'Accepted']);
+        }
+
+        $this->assertSame(0, SubscriptionPayment::query()->count());
+
+        Log::shouldHaveReceived('warning')
+            ->times(3)
+            ->withArgs(fn (string $message, array $context) => $message === '[mpesa] Webhook called with a body we could not read'
+                && $context['ip'] === '127.0.0.1'
+                && $context['content_type'] === 'text/plain'
+                && $context['bytes'] === 0
+                && str_contains((string) $context['path'], '/pay/<secret>/'));
+    }
+
+    public function test_a_callback_for_a_payment_we_did_not_start_names_its_caller_with_the_numbers_masked(): void
+    {
+        Log::spy();
+        $this->app['auth']->forgetGuards();
+
+        $this->postJson('/api/webhooks/pay/'.self::SECRET.'/stk', ['Body' => ['stkCallback' => [
+            'CheckoutRequestID' => 'ws_CO_someone_else', 'ResultCode' => 0, 'MSISDN' => '254712345678',
+        ]]])->assertOk();
+
+        Log::shouldHaveReceived('warning')
+            ->once()
+            ->withArgs(function (string $message, array $context) {
+                return $message === '[mpesa] STK callback for a request we did not start'
+                    && $context['checkout_request_id'] === 'ws_CO_someone_else'
+                    && ! str_contains($context['body'], '254712345678')
+                    && str_contains($context['body'], '254*********');
+            });
     }
 
     public function test_a_paybill_payment_to_an_unknown_account_waits_for_the_superadmin(): void

@@ -87,8 +87,9 @@ class MpesaPayments
      * ResultCode, ResultDesc, CallbackMetadata.Item[{Name, Value}] }.
      *
      * @param  array<string, mixed>  $payload
+     * @param  array<string, mixed>  $context  what the call looked like, for the log (WebhookLog)
      */
-    public function handleStkCallback(array $payload): void
+    public function handleStkCallback(array $payload, array $context = []): void
     {
         $callback = $payload['Body']['stkCallback'] ?? null;
         $checkoutId = is_array($callback) ? ($callback['CheckoutRequestID'] ?? null) : null;
@@ -98,7 +99,7 @@ class MpesaPayments
             : null;
 
         if ($payment === null) {
-            Log::warning('[mpesa] STK callback for a request we did not start', ['checkout_request_id' => $checkoutId]);
+            Log::warning('[mpesa] STK callback for a request we did not start', $context + ['checkout_request_id' => $checkoutId]);
 
             return;
         }
@@ -123,7 +124,7 @@ class MpesaPayments
         }
 
         if ((int) $items->get('Amount') !== $payment->amount_kes) {
-            Log::error('[mpesa] STK callback amount does not match the request', ['payment' => $payment->id, 'amount' => $items->get('Amount')]);
+            Log::error('[mpesa] STK callback amount does not match the request', $context + ['payment' => $payment->id, 'amount' => $items->get('Amount')]);
             $payment->forceFill(['status' => SubscriptionPayment::FAILED, 'result_desc' => 'Amount did not match the request.'])->save();
 
             return;
@@ -178,11 +179,12 @@ class MpesaPayments
      * assigned by hand rather than bounced back to a school that mistyped its code.
      *
      * @param  array<string, mixed>  $payload
+     * @param  array<string, mixed>  $context
      */
-    public function validateC2b(array $payload): void
+    public function validateC2b(array $payload, array $context = []): void
     {
         if ($this->schoolForAccount($payload['BillRefNumber'] ?? null) === null) {
-            Log::info('[mpesa] Paybill payment to an unknown account', ['account' => $payload['BillRefNumber'] ?? null]);
+            Log::info('[mpesa] Paybill payment to an unknown account', $context + ['account' => $payload['BillRefNumber'] ?? null]);
         }
     }
 
@@ -190,14 +192,15 @@ class MpesaPayments
      * C2B confirmation: TransID, TransAmount, BillRefNumber, MSISDN, FirstName, TransTime...
      *
      * @param  array<string, mixed>  $payload
+     * @param  array<string, mixed>  $context
      */
-    public function confirmC2b(array $payload): ?SubscriptionPayment
+    public function confirmC2b(array $payload, array $context = []): ?SubscriptionPayment
     {
         $receipt = $payload['TransID'] ?? null;
         $amount = (int) round((float) ($payload['TransAmount'] ?? 0));
 
         if (! is_string($receipt) || $receipt === '' || $amount <= 0) {
-            Log::warning('[mpesa] Unusable C2B confirmation', ['receipt' => $receipt]);
+            Log::warning('[mpesa] Unusable C2B confirmation', $context + ['receipt' => $receipt]);
 
             return null;
         }
