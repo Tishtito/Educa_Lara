@@ -16,6 +16,7 @@ use App\Domain\People\Models\Student;
 use App\Domain\People\Models\StudentEnrolment;
 use App\Domain\People\Models\User;
 use App\Domain\Tenancy\Models\School;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -248,6 +249,64 @@ class StudentsApiTest extends TestCase
             ->assertJsonPath('data.created', 2);
 
         $this->assertSame(2, StudentEnrolment::query()->acrossTenants()->where('class_id', $this->blue4->id)->where('academic_year_id', $this->year->id)->count());
+    }
+
+    /**
+     * Every pupil field can come in by file, and a blank cell means "not given"
+     * rather than an error: a school back-filling last year's register keeps its
+     * leavers and their joining dates.
+     */
+    public function test_an_import_carries_every_pupil_field_and_leaves_blanks_alone(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-09-21 09:00', 'Africa/Nairobi'));
+
+        $rows = [
+            [
+                'assessment_no' => 'FULL-1', 'first_name' => 'Brian', 'middle_name' => 'Kipchoge', 'last_name' => 'Kemboi',
+                'class' => 'Grade 4 Blue', 'gender' => 'M', 'date_of_birth' => '21/03/2016', 'upi' => 'NEMIS-9',
+                'guardian_name' => 'Mary Kemboi', 'guardian_phone' => '0712 000 111',
+                'status' => 'Transferred', 'started_on' => '06/01/2026',
+            ],
+            // Only what a row cannot do without.
+            ['assessment_no' => 'BARE-2', 'name' => 'Cynthia Mwangi', 'class' => 'Grade 4 Blue'],
+        ];
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->postJson('/api/students/import', ['dry_run' => false, 'rows' => $rows])
+            ->assertCreated()
+            ->assertJsonPath('data.created', 2);
+
+        $full = Student::query()->acrossTenants()->where('assessment_no', 'FULL-1')->sole();
+        $this->assertSame(
+            ['Brian', 'Kipchoge', 'Kemboi', 'male', '2016-03-21', 'NEMIS-9', 'Mary Kemboi', '0712 000 111', 'transferred'],
+            [$full->first_name, $full->middle_name, $full->last_name, $full->gender, $full->date_of_birth->toDateString(),
+                $full->upi, $full->guardian_name, $full->guardian_phone, $full->status],
+        );
+
+        $enrolment = StudentEnrolment::query()->acrossTenants()->where('student_id', $full->id)->sole();
+        $this->assertSame(['2026-01-06', 'left'], [$enrolment->started_on->toDateString(), $enrolment->status]);
+
+        $bare = Student::query()->acrossTenants()->where('assessment_no', 'BARE-2')->sole();
+        $this->assertSame([null, null, null, null, 'active'], [$bare->gender, $bare->date_of_birth, $bare->upi, $bare->guardian_name, $bare->status]);
+
+        $bareEnrolment = StudentEnrolment::query()->acrossTenants()->where('student_id', $bare->id)->sole();
+        $this->assertSame(['2026-09-21', 'active'], [$bareEnrolment->started_on->toDateString(), $bareEnrolment->status]);
+    }
+
+    public function test_a_status_we_do_not_know_is_refused_and_a_future_joining_date_is_allowed(): void
+    {
+        $this->actingAs($this->admin, 'sanctum');
+
+        $response = $this->postJson('/api/students/import', ['dry_run' => true, 'rows' => [
+            ['assessment_no' => 'S1', 'name' => 'Odd Status', 'class' => 'Grade 4 Blue', 'status' => 'gone fishing'],
+            ['assessment_no' => 'S2', 'name' => 'Next Term', 'class' => 'Grade 4 Blue', 'started_on' => now()->addMonth()->format('d/m/Y')],
+            ['assessment_no' => 'S3', 'name' => 'Not Born', 'class' => 'Grade 4 Blue', 'date_of_birth' => now()->addYear()->format('d/m/Y')],
+        ]])->assertOk();
+
+        $errors = collect($response->json('data.errors'))->keyBy('field');
+        $this->assertStringContainsString('active, transferred, graduated, inactive', $errors['status']['message']);
+        $this->assertArrayHasKey('date_of_birth', $errors->all());   // a birth date must still be in the past
+        $this->assertSame([1, 3], collect($response->json('data.errors'))->pluck('row')->all());
     }
 
     // ---------------------------------------------------------- promotion
