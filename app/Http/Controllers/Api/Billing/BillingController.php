@@ -40,7 +40,9 @@ class BillingController extends Controller
         return response()->json(['success' => true, 'data' => [
             'subscription' => $this->subscriptions->stateFor($school),
             'paybill' => [
-                'business_number' => config('services.mpesa.shortcode'),
+                // Where people actually pay: the C2B shortcode. The same Paybill
+                // as STK in production, a separate test one in the sandbox.
+                'business_number' => app(DarajaClient::class)->c2bShortcode(),
                 'account_number' => $school->slug,
             ],
             'mpesa_available' => app(DarajaClient::class)->configured(),

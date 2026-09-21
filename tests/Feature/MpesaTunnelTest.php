@@ -104,6 +104,21 @@ class MpesaTunnelTest extends TestCase
         Process::assertRan(fn (PendingProcess $process) => in_array('--url=https://educa-dev.ngrok-free.dev', $process->command, true));
     }
 
+    /**
+     * The sandbox issues a separate C2B shortcode; registering with the STK one
+     * fails with a generic "Service is currently unreachable".
+     */
+    public function test_the_paybill_urls_register_against_the_c2b_shortcode(): void
+    {
+        $this->local();
+        config(['services.mpesa.c2b_shortcode' => '600996']);
+        $this->fakeNgrok();
+
+        $this->artisan('mpesa:tunnel', ['--once' => true])->assertSuccessful();
+
+        Http::assertSent(fn (HttpRequest $request) => ! str_ends_with($request->url(), '/registerurl') || $request['ShortCode'] === '600996');
+    }
+
     public function test_production_keys_are_never_re_registered_automatically(): void
     {
         $this->local();

@@ -122,7 +122,8 @@ All emails go to whoever holds `manage_billing` in the school, through
 | `BILLING_DEFAULT_CYCLE_MONTHS` | Starting cycle for new schools (4) |
 | `MPESA_ENV` | `sandbox` or `production` |
 | `MPESA_CONSUMER_KEY`, `MPESA_CONSUMER_SECRET` | From your Daraja app |
-| `MPESA_SHORTCODE` | The Paybill number (sandbox: `174379`) |
+| `MPESA_SHORTCODE` | The Paybill for STK push (sandbox: `174379`) |
+| `MPESA_C2B_SHORTCODE` | The Paybill for C2B. Production: the same number, so leave it empty. Sandbox: the C2B test shortcode from the portal (a `600xxx` number) |
 | `MPESA_PASSKEY` | Lipa na M-Pesa Online passkey (sandbox: from the Daraja simulator page) |
 | `MPESA_CALLBACK_BASE_URL` | Public **https** base of the API, e.g. `https://api.educa.co.ke`. Empty locally: the ngrok tunnel is used |
 | `NGROK_ENABLED`, `NGROK_DOMAIN`, `NGROK_BIN` | Local only: the tunnel `composer run dev` opens |
@@ -162,12 +163,22 @@ Steps:
    M-Pesa*, using the sandbox test number from the Daraja portal. Requests
    arriving through the tunnel show at http://127.0.0.1:4040.
 
+**The Paybill URLs** are registered for you, but you can see them with
+`php artisan mpesa:register-urls --show` — in full, secret included — to paste
+into the Daraja portal by hand.
+
 **Rules and failures:**
 - **"Service is currently unreachable" (500.003.1001)** when registering the
-  Paybill URLs is Safaricom's sandbox being down for C2B, not a problem here: it
-  answers the same for any URL, including `https://example.com`. STK push (the
-  Pay with M-Pesa button) does not depend on registration, so payments can still
-  be tested. Restart `composer run dev` later to register again.
+  Paybill URLs almost always means the **wrong shortcode**: the sandbox's STK
+  shortcode (`174379`) is not a C2B one. Put your C2B test shortcode from the
+  Daraja portal in `MPESA_C2B_SHORTCODE`. The error is generic — Safaricom
+  answers the same for any URL, including `https://example.com` — so it is
+  easily mistaken for an outage. STK push does not depend on registration.
+- **Safaricom's C2B simulator may accept a payment and never deliver the
+  confirmation** on the sandbox. Registration succeeding and an STK callback
+  arriving prove the tunnel and the URLs; to exercise the Paybill handler
+  itself, post a confirmation payload to the confirmation URL (`MpesaPaymentsTest`
+  has the shape).
 - **"Invalid ValidationURL - URL has the word MPESA"** means a callback path
   contains a word Safaricom's validator blocks (mpesa, safaricom, exe, sql).
   That is why the path is `/api/webhooks/pay/…`; `MpesaPaymentsTest` pins it.

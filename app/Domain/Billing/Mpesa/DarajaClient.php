@@ -142,13 +142,19 @@ class DarajaClient
         return ['ResultCode' => (string) $body['ResultCode'], 'ResultDesc' => (string) ($body['ResultDesc'] ?? '')];
     }
 
+    /** The Paybill that receives C2B payments: the same number in production, a test one in the sandbox. */
+    public function c2bShortcode(): ?string
+    {
+        return config('services.mpesa.c2b_shortcode') ?: config('services.mpesa.shortcode');
+    }
+
     /** Tells Safaricom where Paybill payments to our short code are validated and confirmed. */
     public function registerC2bUrls(): Response
     {
         $version = config('services.mpesa.env') === 'production' ? 'v2' : 'v1';
 
         return $this->request()->post("/mpesa/c2b/{$version}/registerurl", [
-            'ShortCode' => config('services.mpesa.shortcode'),
+            'ShortCode' => $this->c2bShortcode(),
             // Completed: if our validation URL cannot be reached, accept the payment anyway.
             'ResponseType' => 'Completed',
             'ConfirmationURL' => $this->webhookUrl('c2b/confirmation'),

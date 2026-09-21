@@ -56,6 +56,9 @@ return [
         'consumer_secret' => env('MPESA_CONSUMER_SECRET'),
         // The Paybill (business short code) STK pushes charge and C2B payments reach.
         'shortcode' => env('MPESA_SHORTCODE'),
+        // Paybill payments (C2B). In production this is the same Paybill as
+        // above; the sandbox issues a separate C2B test shortcode (600xxx).
+        'c2b_shortcode' => env('MPESA_C2B_SHORTCODE') ?: env('MPESA_SHORTCODE'),
         'passkey' => env('MPESA_PASSKEY'),
         // Public https base Safaricom calls back, e.g. https://api.educa.co.ke (a tunnel in development).
         'callback_base_url' => rtrim((string) env('MPESA_CALLBACK_BASE_URL', ''), '/'),

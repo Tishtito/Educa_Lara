@@ -44,6 +44,7 @@ class MpesaPaymentsTest extends TestCase
             'consumer_key' => 'key',
             'consumer_secret' => 'secret',
             'shortcode' => '174379',
+            'c2b_shortcode' => '600996',
             'passkey' => 'passkey',
             'callback_base_url' => 'https://api.educa.test',
             'webhook_secret' => self::SECRET,
@@ -248,7 +249,7 @@ class MpesaPaymentsTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.subscription.status', 'trial')
             ->assertJsonPath('data.subscription.amount_due_kes', 10000)
-            ->assertJsonPath('data.paybill', ['business_number' => '174379', 'account_number' => 'hilltop'])
+            ->assertJsonPath('data.paybill', ['business_number' => '600996', 'account_number' => 'hilltop'])
             ->assertJsonPath('data.mpesa_available', true);
     }
 

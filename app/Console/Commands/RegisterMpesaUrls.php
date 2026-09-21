@@ -14,7 +14,7 @@ use Illuminate\Console\Command;
  */
 class RegisterMpesaUrls extends Command
 {
-    protected $signature = 'mpesa:register-urls';
+    protected $signature = 'mpesa:register-urls {--show : Print the URLs without registering, to paste into the Daraja portal}';
 
     protected $description = 'Register the Paybill (C2B) validation and confirmation URLs with Safaricom';
 
@@ -26,6 +26,17 @@ class RegisterMpesaUrls extends Command
             return self::FAILURE;
         }
 
+        if ($this->option('show')) {
+            // In full: these go into Safaricom's portal, and the secret is part of them.
+            $this->line('Shortcode:    '.$daraja->c2bShortcode());
+            $this->line('Validation:   '.$daraja->webhookUrl('c2b/validation'));
+            $this->line('Confirmation: '.$daraja->webhookUrl('c2b/confirmation'));
+            $this->line('STK callback: '.$daraja->webhookUrl('stk'));
+
+            return self::SUCCESS;
+        }
+
+        $this->line('Shortcode: '.$daraja->c2bShortcode());
         $this->line('Confirmation: '.preg_replace('#/webhooks/pay/[^/]+/#', '/webhooks/pay/<secret>/', $daraja->webhookUrl('c2b/confirmation')));
 
         $response = $daraja->registerC2bUrls();
