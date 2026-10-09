@@ -35,6 +35,14 @@ use App\Domain\Tenancy\Models\School;
 use App\Domain\Tenancy\Models\SchoolDomain;
 use App\Domain\Tenancy\Models\SchoolSetting;
 use App\Domain\Tenancy\TenantManager;
+use App\Domain\Timetabling\Enums\TimetableStatus;
+use App\Domain\Timetabling\Models\LessonRequirement;
+use App\Domain\Timetabling\Models\TeachingAssignment;
+use App\Domain\Timetabling\Models\Timetable;
+use App\Domain\Timetabling\Services\BellScheduleService;
+use App\Domain\Timetabling\Services\DefaultBellSchedules;
+use App\Domain\Timetabling\Services\TimetableGenerator;
+use App\Domain\Timetabling\Services\TimetableLifecycle;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
 
@@ -143,13 +151,14 @@ class DemoSchoolSeeder extends Seeder
 
         $levelSubjects = $this->seedCurriculum($school, $level, $year, $scale);
         $enrolments = $this->seedStudents($school, $year, $class);
-        $this->seedStaff($school, $class, $year, $levelSubjects);
+        [$teacher, $examiner] = $this->seedStaff($school, $class, $year, $levelSubjects);
         $this->seedExam($school, $year, $term, $level, $class, $levelSubjects, $enrolments, $scale,
             'Term 1 Mid-Term', ExamType::MIDTERM, 1, 0);
         $endTerm = $this->seedExam($school, $year, $term, $level, $class, $levelSubjects, $enrolments, $scale,
             'Term 1 End-Term', ExamType::ENDTERM, 2, 11);
 
         $this->seedReportEntries($school, $endTerm, $enrolments);
+        $this->seedTimetable($school, $year, $level, $grade, $class, $levelSubjects, $teacher, $examiner);
     }
 
     /**
@@ -258,8 +267,11 @@ class DemoSchoolSeeder extends Seeder
         return $enrolments;
     }
 
-    /** @param array<string, LevelSubject> $levelSubjects */
-    private function seedStaff(School $school, SchoolClass $class, AcademicYear $year, array $levelSubjects): void
+    /**
+     * @param  array<string, LevelSubject>  $levelSubjects
+     * @return array{0: User, 1: User} the class teacher and the examiner
+     */
+    private function seedStaff(School $school, SchoolClass $class, AcademicYear $year, array $levelSubjects): array
     {
         $roles = Role::all()->keyBy('slug');
 
@@ -288,6 +300,55 @@ class DemoSchoolSeeder extends Seeder
         }
 
         unset($admin);
+
+        return [$teacher, $examiner];
+    }
+
+    /**
+     * A school day for the level, lessons per week for Grade 5, who teaches
+     * each subject, and a generated, published timetable — so the staff portal
+     * has a timetable to show straight after seeding. The class teacher teaches
+     * English and Social Studies; the examiner the rest.
+     *
+     * @param  array<string, LevelSubject>  $levelSubjects
+     */
+    private function seedTimetable(School $school, AcademicYear $year, Level $level, Grade $grade, SchoolClass $class, array $levelSubjects, User $teacher, User $examiner): void
+    {
+        app(BellScheduleService::class)->save($level->id, $level->name, [1, 2, 3, 4, 5], DefaultBellSchedules::periodsFor($level->code));
+
+        $plan = [
+            'MAT' => [6, 2, 1, $examiner],
+            'ENG' => [6, 2, 0, $teacher],
+            'KIS' => [5, 2, 0, $examiner],
+            'SCI' => [5, 2, 1, $examiner],
+            'SST' => [4, 1, 0, $teacher],
+        ];
+
+        foreach ($plan as $code => [$lessons, $maxPerDay, $doubles, $user]) {
+            LessonRequirement::updateOrCreate(
+                ['school_id' => $school->id, 'academic_year_id' => $year->id, 'grade_id' => $grade->id, 'level_subject_id' => $levelSubjects[$code]->id],
+                ['lessons_per_week' => $lessons, 'max_per_day' => $maxPerDay, 'double_lessons' => $doubles]
+            );
+            TeachingAssignment::updateOrCreate(
+                ['class_id' => $class->id, 'level_subject_id' => $levelSubjects[$code]->id, 'academic_year_id' => $year->id],
+                ['school_id' => $school->id, 'user_id' => $user->id]
+            );
+        }
+
+        if (Timetable::query()->where('academic_year_id', $year->id)->exists()) {
+            return;
+        }
+
+        $timetable = Timetable::create([
+            'school_id' => $school->id,
+            'academic_year_id' => $year->id,
+            'name' => "Timetable {$year->name}",
+            'status' => TimetableStatus::QUEUED,
+            'seed' => 2026,
+        ]);
+
+        app(TimetableGenerator::class)->run($timetable);
+        app(TimetableLifecycle::class)->publish($timetable->fresh());
     }
 
     /**

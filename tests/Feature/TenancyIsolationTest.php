@@ -110,6 +110,6 @@ class TenancyIsolationTest extends TestCase
 
         $this->assertSame(3, Level::query()->count());
         $this->assertSame(9, Grade::query()->count());
-        $this->assertSame(4, Role::query()->count());
+        $this->assertSame(count(Role::BUILT_IN), Role::query()->count());
     }
 }

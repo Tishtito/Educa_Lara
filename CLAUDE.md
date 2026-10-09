@@ -1,4 +1,4 @@
-# Educa
+# Elimu Pass
 
 Multi-school (SaaS) Laravel 13 rewrite of `Educa_vol_1`, a PHP school-management
 system that shipped as four near-duplicate codebases against three separate
@@ -45,7 +45,7 @@ recoverable from the code alone.
    other than what was issued.
 11. **`SchoolSetting` is not tenant-scoped.** Always filter by `school_id`.
 12. **Long-running jobs take their connection from
-   `config('educa.queue.long_connection')`**, never a hardcoded
+   `config('elimupass.queue.long_connection')`**, never a hardcoded
    `'database-long'` — a named connection bypasses the sync queue in tests.
 13. **Queued jobs hold ids, not tenant-owned models.** A worker has no tenant, so
    `SerializesModels` re-fetching through `TenantScope` fails closed. Load
@@ -66,7 +66,7 @@ recoverable from the code alone.
    edit after import on a re-run. Anything the importer cannot decide goes to
    the quarantine or to a `legacy_decisions` question — never a guess.
 
-18. **People-facing email extends `App\Notifications\EducaMail`.** It queues
+18. **People-facing email extends `App\Notifications\ElimuPassMail`.** It queues
    on `notifications` after commit, sends under the school's name, logs to
    `email_log`, and must be `ShouldBeEncrypted` if it carries a sign-in link.
    Never `Mail::send` to a person directly. Links go through `AccountLinks`,
@@ -79,7 +79,7 @@ recoverable from the code alone.
    `PermissionsTest` rejects unknown slugs and any `role:` middleware;
    `RouteAccessMatrixTest` pins who reaches every route. `docs/permissions.md`.
 20. **Paid features sit behind `subscribed`.** A new route for exams, marking,
-   mark lists or report cards goes inside the `subscribed` group in
+   mark lists, report cards or timetables goes inside the `subscribed` group in
    `routes/api.php`; `SubscriptionLockTest` lists every locked route and fails
    until the list is updated. Money only turns into days in
    `SubscriptionLedger`. Billing tables are not tenant-scoped (webhooks have no

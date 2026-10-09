@@ -89,6 +89,18 @@
         "examiner": false,
         "super_admin": true
     },
+    "DELETE api/timetable/bell-schedules/{bellSchedule}": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "DELETE api/timetables/{timetable}": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
     "GET api/academic-years": {
         "school_admin": true,
         "class_teacher": true,
@@ -257,10 +269,22 @@
         "examiner": true,
         "super_admin": true
     },
+    "GET api/me/timetable": {
+        "school_admin": false,
+        "class_teacher": true,
+        "examiner": true,
+        "super_admin": true
+    },
     "GET api/my/classes/{schoolClass}/students": {
         "school_admin": false,
         "class_teacher": true,
         "examiner": false,
+        "super_admin": true
+    },
+    "GET api/my/classes/{schoolClass}/timetable": {
+        "school_admin": false,
+        "class_teacher": true,
+        "examiner": true,
         "super_admin": true
     },
     "GET api/my/students/{student}": {
@@ -353,6 +377,12 @@
         "examiner": false,
         "super_admin": true
     },
+    "GET api/school/report-card-templates/{template}/preview": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
     "GET api/staff": {
         "school_admin": true,
         "class_teacher": false,
@@ -389,7 +419,67 @@
         "examiner": false,
         "super_admin": true
     },
+    "GET api/teacher-subjects": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/teaching-assignments": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
     "GET api/terms": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/timetable/bell-schedules": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/timetable/requirements": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/timetables": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/timetables/readiness": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/timetables/{timetable}": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/timetables/{timetable}/classes/{schoolClass}": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/timetables/{timetable}/lessons/{lesson}/options": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/timetables/{timetable}/teachers/{user}": {
         "school_admin": true,
         "class_teacher": false,
         "examiner": false,
@@ -474,6 +564,12 @@
         "super_admin": true
     },
     "PATCH api/terms/{term}": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "PATCH api/timetables/{timetable}/lessons/{lesson}": {
         "school_admin": true,
         "class_teacher": false,
         "examiner": false,
@@ -629,6 +725,12 @@
         "examiner": false,
         "super_admin": true
     },
+    "POST api/staff/import": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
     "POST api/staff/{staff}/invitation": {
         "school_admin": true,
         "class_teacher": false,
@@ -683,6 +785,30 @@
         "examiner": false,
         "super_admin": true
     },
+    "POST api/teacher-subjects/copy-year": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/teacher-subjects/from-examiners": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/teaching-assignments/copy-year": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/teaching-assignments/from-examiners": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
     "POST api/terms": {
         "school_admin": true,
         "class_teacher": false,
@@ -695,6 +821,36 @@
         "examiner": false,
         "super_admin": true
     },
+    "POST api/timetable/bell-schedules/defaults": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/timetable/requirements/copy-year": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/timetables": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/timetables/{timetable}/duplicate": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/timetables/{timetable}/publish": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
     "PUT api/classes/{schoolClass}/class-teachers": {
         "school_admin": true,
         "class_teacher": false,
@@ -702,6 +858,12 @@
         "super_admin": true
     },
     "PUT api/classes/{schoolClass}/examiners": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "PUT api/classes/{schoolClass}/teaching-assignments": {
         "school_admin": true,
         "class_teacher": false,
         "examiner": false,
@@ -750,6 +912,24 @@
         "super_admin": true
     },
     "PUT api/school/report-card-settings": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "PUT api/staff/{user}/teacher-subjects": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "PUT api/timetable/bell-schedules": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "PUT api/timetable/requirements": {
         "school_admin": true,
         "class_teacher": false,
         "examiner": false,

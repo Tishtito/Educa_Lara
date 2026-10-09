@@ -26,6 +26,7 @@ final class DefaultRoles
         'view_class_pupils',
         'admit_class_pupils',
         'move_class_pupils',
+        PermissionRegistry::VIEW_OWN_TIMETABLE,
     ];
 
     /** @var array<string, list<string>> */
@@ -39,12 +40,20 @@ final class DefaultRoles
             'view_class_pupils',
             'admit_class_pupils',
             'move_class_pupils',
+            'view_own_timetable',
         ],
         Role::EXAMINER => [
             'access_staff_portal',
             'view_marksheets',
             'enter_marks',
             'set_max_marks',
+            'view_own_timetable',
+        ],
+        // Enough to sign in and follow the timetable. A school that wants its
+        // teachers to mark gives them the examiner role too, or edits this one.
+        Role::TEACHER => [
+            'access_staff_portal',
+            'view_own_timetable',
         ],
     ];
 

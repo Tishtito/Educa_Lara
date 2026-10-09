@@ -9,7 +9,7 @@ return [
     'mail' => [
         // Mail goes out from one platform address (MAIL_FROM_ADDRESS) under the
         // school's name, so one sending domain's SPF/DKIM covers every school.
-        'from_name_format' => env('MAIL_FROM_NAME_FORMAT', '{school} via Educa'),
+        'from_name_format' => env('MAIL_FROM_NAME_FORMAT', '{school} via Elimu Pass'),
 
         // Replies reach the school office rather than an unattended mailbox.
         'reply_to_school' => (bool) env('MAIL_REPLY_TO_SCHOOL', true),
@@ -18,7 +18,7 @@ return [
         'log_retention_days' => (int) env('MAIL_LOG_RETENTION_DAYS', 180),
     ],
 
-    // Where links in emails point. Admins land in Educa Admin, other staff in
+    // Where links in emails point. Admins land in Elimu Pass Admin, other staff in
     // the staff portal.
     'apps' => [
         'admin_url' => rtrim((string) env('EDUCA_ADMIN_URL', 'http://localhost:5173'), '/'),
@@ -82,8 +82,19 @@ return [
         // the worker's heartbeat is recorded under.
         'workers' => [
             'educa-results' => ['connection' => 'database', 'queues' => 'results'],
-            'educa-general' => ['connection' => 'database-long', 'queues' => 'reports,notifications,default'],
+            'educa-general' => ['connection' => 'database-long', 'queues' => 'timetables,reports,notifications,default'],
         ],
+    ],
+
+    'timetable' => [
+        // How long the solver may search before reporting what it could not
+        // place. Must stay well below GenerateTimetable::$timeout (300 s).
+        'time_limit_ms' => (int) env('TIMETABLE_TIME_LIMIT_MS', 60_000),
+        'max_attempts' => (int) env('TIMETABLE_MAX_ATTEMPTS', 30),
+
+        // A queued or generating timetable silent for this long is presumed
+        // lost (worker killed, deploy), so the school can generate again.
+        'stale_minutes' => (int) env('TIMETABLE_STALE_MINUTES', 15),
     ],
 
 ];

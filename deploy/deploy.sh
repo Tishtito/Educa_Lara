@@ -47,6 +47,15 @@ git reset --hard "origin/$BRANCH"
 echo "==> Dependencies"
 composer install --no-dev --optimize-autoloader --no-interaction --no-progress
 
+echo "==> Workers match this release"
+# Before the migration, so a refusal leaves the database as it was. The cached
+# config is the previous release's; clear it so the check reads this one's.
+# SKIP_WORKER_CHECK=1 for a first install, where no worker has run yet.
+php artisan config:clear
+if [ "${SKIP_WORKER_CHECK:-0}" != "1" ]; then
+    php artisan ops:check-workers
+fi
+
 echo "==> Migrations"
 php artisan migrate --force
 

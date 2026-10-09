@@ -115,7 +115,7 @@ class PermissionsTest extends TestCase
     {
         $this->as($this->examiner)->getJson('/api/auth/me')
             ->assertOk()
-            ->assertJsonPath('data.permissions', ['access_staff_portal', 'view_marksheets', 'enter_marks', 'set_max_marks']);
+            ->assertJsonPath('data.permissions', ['access_staff_portal', 'view_marksheets', 'enter_marks', 'set_max_marks', 'view_own_timetable']);
 
         $permissions = $this->as($this->admin)->getJson('/api/auth/me')->json('data.permissions');
         $this->assertContains('access_admin_app', $permissions);

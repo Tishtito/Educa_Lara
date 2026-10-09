@@ -24,7 +24,7 @@ class SendSubscriptionReminders extends Command
 
     public function handle(Subscriptions $subscriptions, SubscriptionLedger $ledger): int
     {
-        $days = config('educa.billing.reminder_days');
+        $days = config('elimupass.billing.reminder_days');
         $sent = 0;
 
         SchoolSubscription::query()

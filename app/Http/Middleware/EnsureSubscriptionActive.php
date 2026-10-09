@@ -40,7 +40,7 @@ class EnsureSubscriptionActive
 
         return response()->json([
             'success' => false,
-            'message' => ($ended ? "{$school->name}'s Educa {$what} ended on {$ended}." : "{$school->name} has no Educa subscription.")
+            'message' => ($ended ? "{$school->name}'s Elimu Pass {$what} ended on {$ended}." : "{$school->name} has no Elimu Pass subscription.")
                 .' Exams, marking, mark lists and report cards are locked until it is renewed.',
             'subscription_required' => true,
             'subscription' => $this->subscriptions->stateFor($school),

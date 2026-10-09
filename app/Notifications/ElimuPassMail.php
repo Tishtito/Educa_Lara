@@ -27,7 +27,7 @@ use Illuminate\Notifications\Notification;
  * Add ShouldBeEncrypted when the email carries a secret (a sign-in link), so
  * the queued payload does not hold it in clear text.
  */
-abstract class EducaMail extends Notification implements ShouldQueue
+abstract class ElimuPassMail extends Notification implements ShouldQueue
 {
     use Queueable;
 
@@ -41,7 +41,7 @@ abstract class EducaMail extends Notification implements ShouldQueue
 
     public function __construct()
     {
-        $this->onConnection(config('educa.queue.long_connection'));
+        $this->onConnection(config('elimupass.queue.long_connection'));
         $this->onQueue('notifications');
         $this->afterCommit();
     }
@@ -73,17 +73,17 @@ abstract class EducaMail extends Notification implements ShouldQueue
 
         $fromAddress = config('mail.from.address');
         $fromName = $schoolName
-            ? str_replace('{school}', $schoolName, (string) config('educa.mail.from_name_format'))
+            ? str_replace('{school}', $schoolName, (string) config('elimupass.mail.from_name_format'))
             : config('mail.from.name');
         $message->from($fromAddress, $fromName);
 
         // filter_var, not just a null check: a school that saved a malformed
         // address must not stop every email to that school from going out.
-        if ($school?->email && config('educa.mail.reply_to_school') && filter_var($school->email, FILTER_VALIDATE_EMAIL)) {
+        if ($school?->email && config('elimupass.mail.reply_to_school') && filter_var($school->email, FILTER_VALIDATE_EMAIL)) {
             $message->replyTo($school->email, $schoolName);
         }
 
-        return $message->salutation($schoolName ? "Regards, {$schoolName}" : 'Regards, Educa');
+        return $message->salutation($schoolName ? "Regards, {$schoolName}" : 'Regards, Elimu Pass');
     }
 
     public function schoolFor(object $notifiable): ?School

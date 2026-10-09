@@ -14,8 +14,8 @@ until the school renews. Nothing is ever deleted.
 | | **Billing**, so the school can pay |
 
 - **In the apps:**
-  - Educa Admin blurs **Exams** with a renewal card.
-  - Educa Staff blurs **Marking**, **Mark list**, **Reports** and a class's
+  - Elimu Pass Admin blurs **Exams** with a renewal card.
+  - Elimu Pass Portal blurs **Marking**, **Mark list**, **Reports** and a class's
     **Marks** tab.
   - Both show a banner in the last week and once lapsed.
 - **Superadmins** are never locked, so support can look into a school.
@@ -55,7 +55,7 @@ until the school renews. Nothing is ever deleted.
 
 ## Paying with M-Pesa
 
-Every school pays the **one Educa Paybill**. The school code (`schools.slug`) is
+Every school pays the **one Elimu Pass Paybill**. The school code (`schools.slug`) is
 the account number.
 
 ### STK push (the "Pay with M-Pesa" button)
@@ -115,7 +115,7 @@ Daraja does not sign its callbacks:
 ## Emails
 
 All emails go to whoever holds `manage_billing` in the school, through
-`EducaMail` on the `notifications` queue:
+`ElimuPassMail` on the `notifications` queue:
 - **Receipt** after every settled payment: amount, M-Pesa code, new paid-until
   date, credit.
 - **Reminders** (`billing:remind`, daily 07:00 Nairobi): 7 days before, the last
@@ -199,7 +199,7 @@ into the Daraja portal by hand.
 
 ### Production
 
-- Go live on the Daraja portal with the Educa Paybill and its production passkey.
+- Go live on the Daraja portal with the Elimu Pass Paybill and its production passkey.
 - Set `MPESA_ENV=production` and the production keys, `MPESA_ALLOWED_IPS`, and
   an https `MPESA_CALLBACK_BASE_URL`. Production never runs `mpesa:tunnel`: a
   configured base URL always wins.

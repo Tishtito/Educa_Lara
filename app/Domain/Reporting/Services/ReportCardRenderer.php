@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Reporting\Services;
 
+use App\Domain\Reporting\Enums\ReportTemplate;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Illuminate\Support\Facades\File;
@@ -13,8 +14,10 @@ use InvalidArgumentException;
 /**
  * Turns report-card payloads (ReportCardBuilder) into a PDF.
  *
- * dompdf, as legacy used, rendering resources/views/reports/card.blade.php
- * with the ported print stylesheet. Locked down harder than legacy's setup,
+ * dompdf, as legacy used. Each card is printed in the template it carries
+ * (ReportTemplate; resources/views/reports/templates/<template>/card.blade.php
+ * with that template's print stylesheet) — a live card carries the school's
+ * current choice, an issued one the template it was frozen with. Locked down harder than legacy's setup,
  * which enabled isRemoteEnabled: report cards contain text typed by teachers,
  * and a renderer that fetches remote URLs from its input is a server-side
  * request forgery hole. Here remote loading, embedded PHP and JavaScript are
@@ -36,7 +39,7 @@ class ReportCardRenderer
 
         $html = view('reports.document', [
             'cards' => array_values($cards),
-            'css' => File::get(resource_path('views/reports/report-card.css')),
+            'css' => $this->stylesheets($cards),
             'logo' => $this->logoDataUri($cards[array_key_first($cards)]['school']['logo_path'] ?? null),
         ])->render();
 
@@ -46,6 +49,26 @@ class ReportCardRenderer
         $dompdf->render();
 
         return (string) $dompdf->output();
+    }
+
+    /**
+     * The stylesheet of each template in the document, once each, in the order
+     * first used. Templates prefix their classes (rp-, rm-, rf-) so they can
+     * share a document: a class batch of a published exam may hold cards issued
+     * under different templates.
+     *
+     * @param  array<array-key, array<string, mixed>>  $cards
+     */
+    private function stylesheets(array $cards): string
+    {
+        $css = [];
+
+        foreach ($cards as $card) {
+            $template = ReportTemplate::fromCard($card);
+            $css[$template->value] ??= File::get($template->stylesheetPath());
+        }
+
+        return implode("\n", $css);
     }
 
     private function options(): Options

@@ -32,6 +32,7 @@ use App\Http\Controllers\Api\Platform\SchoolController as PlatformSchoolControll
 use App\Http\Controllers\Api\Platform\SubscriptionController as PlatformSubscriptionController;
 use App\Http\Controllers\Api\Portal\ClassPupilsController;
 use App\Http\Controllers\Api\Portal\MeController;
+use App\Http\Controllers\Api\Portal\MyTimetableController;
 use App\Http\Controllers\Api\ReferenceDataController;
 use App\Http\Controllers\Api\ReportCardBatchController;
 use App\Http\Controllers\Api\ReportCardController;
@@ -40,6 +41,12 @@ use App\Http\Controllers\Api\ReportEntryController;
 use App\Http\Controllers\Api\SchoolProfileController;
 use App\Http\Controllers\Api\SelectedExamController;
 use App\Http\Controllers\Api\TermController;
+use App\Http\Controllers\Api\Timetabling\BellScheduleController;
+use App\Http\Controllers\Api\Timetabling\LessonRequirementController;
+use App\Http\Controllers\Api\Timetabling\TeacherSubjectController;
+use App\Http\Controllers\Api\Timetabling\TeachingAssignmentController;
+use App\Http\Controllers\Api\Timetabling\TimetableController;
+use App\Http\Controllers\Api\Timetabling\TimetableLessonController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -128,6 +135,9 @@ Route::middleware(['auth:sanctum', 'tenant', 'password.changed'])->group(functio
         Route::delete('school/logo', [SchoolProfileController::class, 'deleteLogo']);
         Route::get('school/report-card-settings', [ReportCardSettingsController::class, 'show']);
         Route::put('school/report-card-settings', [ReportCardSettingsController::class, 'update']);
+        // A sample card, not a pupil's: outside `subscribed` with the rest of the
+        // school's settings, so a locked school can still see what it would get.
+        Route::get('school/report-card-templates/{template}/preview', [ReportCardSettingsController::class, 'preview']);
     });
 
     // Academic calendar
@@ -207,11 +217,58 @@ Route::middleware(['auth:sanctum', 'tenant', 'password.changed'])->group(functio
         });
         Route::get('exams/{exam}/report-entries', [ReportEntryController::class, 'index'])->middleware('can:edit_report_entries');
         Route::put('exams/{exam}/report-entries', [ReportEntryController::class, 'update'])->middleware('can:edit_report_entries');
+
+        // Timetables. Set-up (school day, lessons per week), generation on a
+        // worker, hand edits to a draft, publication. Only a published timetable
+        // reaches staff (me/timetable).
+        Route::middleware('can:manage_timetables')->group(function (): void {
+            Route::get('timetable/bell-schedules', [BellScheduleController::class, 'index']);
+            Route::put('timetable/bell-schedules', [BellScheduleController::class, 'update']);
+            Route::post('timetable/bell-schedules/defaults', [BellScheduleController::class, 'defaults']);
+            Route::delete('timetable/bell-schedules/{bellSchedule}', [BellScheduleController::class, 'destroy'])->whereNumber('bellSchedule');
+            Route::get('timetable/requirements', [LessonRequirementController::class, 'index']);
+            Route::put('timetable/requirements', [LessonRequirementController::class, 'update']);
+            Route::post('timetable/requirements/copy-year', [LessonRequirementController::class, 'copyYear']);
+            Route::get('timetables/readiness', [TimetableController::class, 'readiness']);
+            Route::post('timetables', [TimetableController::class, 'store']);
+            Route::post('timetables/{timetable}/publish', [TimetableController::class, 'publish'])->whereNumber('timetable');
+            Route::post('timetables/{timetable}/duplicate', [TimetableController::class, 'duplicate'])->whereNumber('timetable');
+            Route::delete('timetables/{timetable}', [TimetableController::class, 'destroy'])->whereNumber('timetable');
+            Route::get('timetables/{timetable}/lessons/{lesson}/options', [TimetableLessonController::class, 'options'])->whereNumber(['timetable', 'lesson'])->scopeBindings();
+            Route::patch('timetables/{timetable}/lessons/{lesson}', [TimetableLessonController::class, 'update'])->whereNumber(['timetable', 'lesson'])->scopeBindings();
+        });
+        Route::middleware('can:view_timetables')->group(function (): void {
+            Route::get('timetables', [TimetableController::class, 'index']);
+            Route::get('timetables/{timetable}', [TimetableController::class, 'show'])->whereNumber('timetable');
+            Route::get('timetables/{timetable}/classes/{schoolClass}', [TimetableController::class, 'forClass'])->whereNumber(['timetable', 'schoolClass']);
+            Route::get('timetables/{timetable}/teachers/{user}', [TimetableController::class, 'forTeacher'])->whereNumber(['timetable', 'user']);
+        });
+
+        // Who teaches what: the timetable's input. A teaching assignment pins a
+        // class's subject to one teacher (optional).
+        Route::middleware('can:manage_assignments')->group(function (): void {
+            Route::get('teaching-assignments', [TeachingAssignmentController::class, 'index']);
+            Route::put('classes/{schoolClass}/teaching-assignments', [TeachingAssignmentController::class, 'update']);
+            Route::post('teaching-assignments/from-examiners', [TeachingAssignmentController::class, 'fromExaminers']);
+            Route::post('teaching-assignments/copy-year', [TeachingAssignmentController::class, 'copyYear']);
+
+            // The subjects each teacher can teach; the generator gives them
+            // classes, and a teaching assignment above pins one instead.
+            Route::get('teacher-subjects', [TeacherSubjectController::class, 'index']);
+            Route::put('staff/{user}/teacher-subjects', [TeacherSubjectController::class, 'update'])->whereNumber('user');
+            Route::post('teacher-subjects/copy-year', [TeacherSubjectController::class, 'copyYear']);
+            Route::post('teacher-subjects/from-examiners', [TeacherSubjectController::class, 'fromExaminers']);
+        });
+
+        // The signed-in teacher's own published timetable, and their class's.
+        Route::get('me/timetable', [MyTimetableController::class, 'mine'])->middleware('can:view_own_timetable');
+        Route::get('my/classes/{schoolClass}/timetable', [MyTimetableController::class, 'forClass'])->middleware('can:view_own_timetable');
     });
 
     // Staff accounts, and who teaches and marks what.
     Route::get('staff', [StaffController::class, 'index'])->middleware('can:view_staff');
     Route::post('staff', [StaffController::class, 'store'])->middleware('can:create_staff');
+    Route::post('staff/import', [StaffController::class, 'import'])->middleware(['can:create_staff', 'throttle:20,1,staff-import']);
     Route::patch('staff/{staff}', [StaffController::class, 'update'])->whereNumber('staff')->middleware('can:update_staff');
     Route::post('staff/{staff}/reset-password', [StaffController::class, 'resetPassword'])->whereNumber('staff')->middleware('can:reset_staff_passwords');
     Route::post('staff/{staff}/sign-out', [StaffController::class, 'signOut'])->whereNumber('staff')->middleware('can:sign_out_staff');

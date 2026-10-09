@@ -4,6 +4,7 @@ use App\Domain\Academics\Exceptions\SetupConflict;
 use App\Domain\Billing\Mpesa\MpesaException;
 use App\Domain\Examination\Exceptions\ExaminationRuleViolation;
 use App\Domain\People\Exceptions\AccountLinkUnavailable;
+use App\Domain\Timetabling\Exceptions\TimetableRuleViolation;
 use App\Http\Middleware\EnsurePasswordChanged;
 use App\Http\Middleware\EnsureSubscriptionActive;
 use App\Http\Middleware\ResolveTenant;
@@ -59,6 +60,13 @@ return Application::configure(basePath: dirname(__DIR__))
         // Exam state-rule violations (locked exam, bad transition, frozen max
         // marks) carry their own HTTP status and a human-readable reason.
         $exceptions->render(function (ExaminationRuleViolation $e, Request $request) {
+            if ($request->is('api/*')) {
+                return response()->json(['success' => false, 'message' => $e->getMessage()], $e->status());
+            }
+        });
+
+        // Timetable actions not allowed in its current state (TimetableRuleViolation).
+        $exceptions->render(function (TimetableRuleViolation $e, Request $request) {
             if ($request->is('api/*')) {
                 return response()->json(['success' => false, 'message' => $e->getMessage()], $e->status());
             }

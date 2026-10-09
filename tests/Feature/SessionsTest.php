@@ -25,7 +25,7 @@ class SessionsTest extends TestCase
     {
         parent::setUp();
         $this->seedReferenceData();
-        config(['sanctum.expiration' => 60 * 24 * 90, 'educa.sessions.idle_days' => 30]);
+        config(['sanctum.expiration' => 60 * 24 * 90, 'elimupass.sessions.idle_days' => 30]);
 
         $this->school = School::factory()->create();
         $this->teacher = User::factory()->withRole(Role::CLASS_TEACHER)->create(['school_id' => $this->school->id, 'username' => 'jkamau']);

@@ -41,7 +41,7 @@ class GenerateReportCardBatch implements ShouldQueue
 
     public function __construct(public readonly int $batchId)
     {
-        $this->onConnection(config('educa.queue.long_connection'));
+        $this->onConnection(config('elimupass.queue.long_connection'));
         $this->onQueue('reports');
         $this->afterCommit();
     }

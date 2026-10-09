@@ -9,7 +9,7 @@ use Illuminate\Console\Command;
 
 /**
  * Deletes sessions that can no longer be used: past their absolute lifetime
- * (sanctum.expiration), or idle longer than educa.sessions.idle_days. Such
+ * (sanctum.expiration), or idle longer than elimupass.sessions.idle_days. Such
  * tokens are already refused; this only stops them piling up. Scheduled daily.
  */
 class PruneSessions extends Command
@@ -21,7 +21,7 @@ class PruneSessions extends Command
     public function handle(): int
     {
         $lifetime = config('sanctum.expiration');
-        $idleSince = now()->subDays(config('educa.sessions.idle_days'));
+        $idleSince = now()->subDays(config('elimupass.sessions.idle_days'));
 
         $deleted = PersonalAccessToken::query()
             ->where(fn ($q) => $q

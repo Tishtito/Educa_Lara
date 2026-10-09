@@ -1,6 +1,6 @@
 # Email
 
-Educa sends email to people: staff invitations, password reset links, and a
+Elimu Pass sends email to people: staff invitations, password reset links, and a
 notice whenever a password changes. Any future email (report cards ready,
 reminders, parent messages) should use the same foundation, described below.
 Ops alerts about the queue are separate. `App\Operations\OpsAlerts` sends them
@@ -11,14 +11,14 @@ broken.
 
 | Piece | Where |
 |---|---|
-| Base class for every people-facing email | `app/Notifications/EducaMail.php` |
-| Layout and theme | `resources/views/mail/notification.blade.php`, `resources/views/mail/educa-theme.blade.php` |
+| Base class for every people-facing email | `app/Notifications/ElimuPassMail.php` |
+| Layout and theme | `resources/views/mail/notification.blade.php`, `resources/views/mail/elimupass-theme.blade.php` |
 | Delivery log (`email_log`) | `app/Domain/Messaging/EmailLogger.php`; pruned daily by `mail:prune-log` |
 | Invitations and reset links (`account_tokens`) | `app/Domain/People/Services/AccountLinks.php` |
 | Account emails | `app/Notifications/Account/` |
 | Settings | `config/mail.php` (`MAIL_*`), `config/educa.php` (`mail`, `apps`, `accounts`) |
 
-Every `EducaMail` follows these rules:
+Every `ElimuPassMail` follows these rules:
 
 - **Queued** on the `notifications` queue on the long-running connection. A slow
   mail server never holds up a request. **A worker must serve `notifications`.**
@@ -28,7 +28,7 @@ Every `EducaMail` follows these rules:
 - **Dispatched after the database commit.** A rolled-back transaction sends
   nothing.
 - **Sent from one platform address** (`MAIL_FROM_ADDRESS`) under the school's
-  name ("Gatimu Primary School via Educa"). **Replies** go to the school's own
+  name ("Gatimu Primary School via Elimu Pass"). **Replies** go to the school's own
   email address. One sending domain therefore covers every school's
   SPF/DKIM/DMARC.
 - **Logged** to `email_log` as `sent` or `failed`: type, recipient and subject
@@ -84,7 +84,7 @@ MAIL_SCHEME=null         # or smtps for port 465
 MAIL_USERNAME=no-reply@educa.example
 MAIL_PASSWORD=...
 MAIL_FROM_ADDRESS=no-reply@educa.example
-MAIL_FROM_NAME="Educa"
+MAIL_FROM_NAME="Elimu Pass"
 EDUCA_ADMIN_URL=https://admin.educa.example
 EDUCA_PORTAL_URL=https://staff.educa.example
 ```
@@ -146,7 +146,7 @@ mail arrives anywhere, but its link only opens on this machine.
 
 ## Adding a new email
 
-1. Create a class in `app/Notifications/…` that extends `EducaMail`. Call
+1. Create a class in `app/Notifications/…` that extends `ElimuPassMail`. Call
    `parent::__construct()`, implement `type()` (a stable log key) and
    `message()`, and start from `$this->mailMessage($school)`.
 2. Pass ids and plain values to the constructor, not tenant-owned models
