@@ -10,6 +10,7 @@ use App\Domain\Examination\Models\Exam;
 use App\Domain\People\Models\StudentEnrolment;
 use App\Domain\People\Models\User;
 use App\Domain\Reporting\Enums\ReportLayout;
+use App\Domain\Reporting\Enums\ReportTemplate;
 use App\Domain\Reporting\Exceptions\ReportCardUnavailable;
 use App\Domain\Reporting\Models\ReportCardSnapshot;
 use Illuminate\Support\Facades\Log;
@@ -84,6 +85,9 @@ class ReportCardService
      * changed (a card is not re-dated just because it was frozen again), and
      * removes the cards of students no longer in the exam.
      *
+     * A student's card keeps the template (design) it was first frozen with,
+     * whatever the school has chosen since: see withIssuedTemplate().
+     *
      * @return int students snapshotted
      */
     public function snapshot(Exam $exam, ?User $publishedBy = null): int
@@ -108,6 +112,11 @@ class ReportCardService
                 $count++;
 
                 $previous = $existing->get($studentId);
+
+                if ($previous !== null) {
+                    $payload = self::withIssuedTemplate($payload, $previous->payload ?? []);
+                }
+
                 if ($previous !== null && $previous->isIntact() && (int) $previous->enrolment_id === (int) $enrolmentId
                     && self::undated($previous->payload ?? []) === self::undated($payload)) {
                     continue;
@@ -130,6 +139,45 @@ class ReportCardService
         ReportCardSnapshot::query()->where('exam_id', $exam->id)->whereNotIn('student_id', $students)->delete();
 
         return $count;
+    }
+
+    /**
+     * A fresh payload, in the template the student's card was issued with.
+     *
+     * The template is part of what was issued, so once a snapshot exists it is
+     * fixed: changing the school's setting restyles cards not yet published,
+     * never one that has gone home. Nothing leaves PUBLISHED but ARCHIVED
+     * (ExamStatus::allowedTransitions), so the only caller that freezes an
+     * exam twice is the legacy importer's finalise step — and rule 17 needs
+     * that second run to change nothing.
+     *
+     * A card frozen before templates existed has no `template` key, and keeps
+     * having none: adding one would rewrite (and re-date) every card issued
+     * until now the first time the importer re-ran. Reads supply the default.
+     *
+     * @param  array<string, mixed>  $payload
+     * @param  array<string, mixed>  $issued
+     * @return array<string, mixed>
+     */
+    private static function withIssuedTemplate(array $payload, array $issued): array
+    {
+        // Both layouts are frozen together, so the single card (always present)
+        // speaks for the pair — including a term card that only now exists.
+        $template = $issued['single']['template'] ?? $issued['term']['template'] ?? null;
+
+        foreach (['single', 'term'] as $layout) {
+            if (! is_array($payload[$layout] ?? null)) {
+                continue;
+            }
+
+            if ($template === null) {
+                unset($payload[$layout]['template']);
+            } else {
+                $payload[$layout]['template'] = $template;
+            }
+        }
+
+        return $payload;
     }
 
     /** A payload's checksum ignoring when it was generated. */
@@ -169,6 +217,19 @@ class ReportCardService
 
             return null;
         }
+
+        // Cards frozen before 2026_09_21_000100 call the number admission_no.
+        // Renamed on the way out, never in the stored payload: the checksum is
+        // over what was issued, and rewriting it would make every card look
+        // tampered with.
+        if (is_array($card['student'] ?? null) && ! array_key_exists('assessment_no', $card['student']) && array_key_exists('admission_no', $card['student'])) {
+            $card['student']['assessment_no'] = $card['student']['admission_no'];
+            unset($card['student']['admission_no']);
+        }
+
+        // Cards frozen before templates existed name none; they were issued in
+        // what is now Classic. Supplied on the way out for the same reason.
+        $card['template'] ??= ReportTemplate::CLASSIC->value;
 
         return $card + [
             'is_snapshot' => true,

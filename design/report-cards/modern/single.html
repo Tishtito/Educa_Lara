@@ -1,0 +1,190 @@
+<!-- @dsCard group="Report cards" -->
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Modern report card (single exam)</title>
+    <link rel="stylesheet" href="card.css">
+</head>
+<!-- The document shell (reports/document.blade.php) zeroes the body margin. -->
+<body style="margin: 0; padding: 0">
+<div class="rm-page rm-page-last">
+    <table class="rm-header">
+        <tr>
+            <td class="rm-logo"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAYAAADimHc4AAAACXBIWXMAAA7EAAAOxAGVKw4bAAADO0lEQVR42u2dXbLCIAxGmyyurrndnD454zjaQsjPFwjP99pwDgmiAttWLbRRlkD3fX/2/s95nlQCnGBnlUIrQEeWQatBR5NBq4OPFkEFPlYEFfhYEZQJ/nEczX/7eDxSSCBU8D2wvaRYiCAk+BbQtWVoS6DVwKOJoEj4veB7YFm+tqYEioDfCkdzIrV65qgE8oTfAkETulccIxIIBb4HeMuYpBLIGj4ieKsYJRIoCj4CeIt4eyWQN3xE8Nqx90iggh8rgdECR2n/4tVeNJLm6J8FvlafWrKAs8O3/hhjJBNauHH0KNF4LrKE4RJ0ZzECftTbW2lfr0oRa610EeBbZ4O0X1ccWRtGJPwoCSPPI83SYwV/pIOeMUlKEUenp/VotsoGrf6y5sSL+hYTJd5fXBlx9B/HoQ7N4jU1+s1oo3/21//my0ijP1tp0+g/IwCyKA+Rz+x5XR5ZeGmM/sifpGg9v5fDJ2eOBBUNH6Fv7GU9uuRYxyTlwdLyk33UR8f35s2eQaHDj+gve6QbYsmxiFlShniWlM4aP2/VQhtbT8CZv5C3jn/f9yf3pmB2oN7C7kpYlSCEEpQ5jbPHXRmwQgZUAxAwy29DKwMqA6qlFZClDHnGWRlQJagEqC6ts5eh0fh6P7rhbctxuuCM7TxPqhK04hyAWoYi4hIJyP4tl1WTcOHMI3aG9QR/TggrlyHveN682TPdqvwMzAFVhmwyin+lhVcWoEjVXny1lp/uElRZoM9peB2w+lww2n++Sg+PLIjOKu/+fPNlhFGw6uj/K8A7C1ap/aYbtRF3s1s+VyvrucfWXfCrlCKtYwq27ea4GulBTTOXKGl//wlgyT+tOilL+3XFsQkw4qFNKPBHDmtSm4S9ThjMBr+l1amJhn1qKeHqB7fOJMEavuo6YLZy5DWQ6uxog9jNzo7WkoAqIsXp6ZoSUESkuz+gVwKqiNQ3aFhI8BIxzR0yEgk974jqFiVDCZK3pnWPmIGE6DXCNDfpZRMx5V2SGhIsZSxzm6qmCKmU5e8TtpLg3dLfqJ1VxFR3ymcS4f0z/dDNeUgiojYqwuyOjJCBsDsUcnuqpQy0Lblp9gdLpGTY//wC6I9yOEe1qEEAAAAASUVORK5CYII=" alt=""></td>
+            <td class="rm-school">
+                <div class="rm-school-name">Mwangaza Ridge Junior Academy and Comprehensive School</div>
+                <div class="rm-motto">Striving together for knowledge, character and service to the community</div>
+            </td>
+            <td class="rm-contact">
+                <div class="rm-contact-line">P.O. Box 1234-00100, Mwangaza Ridge, Sample County</div>
+                <div class="rm-contact-line">+254 700 000 000</div>
+                <div class="rm-contact-line">office@mwangazaridge.example</div>
+            </td>
+        </tr>
+    </table>
+    <table class="rm-title">
+        <tr>
+            <td>
+                <div class="rm-title-text">Performance Report</div>
+            </td>
+            <td class="rm-title-right">
+                <div class="rm-title-line">Term 2 Mid-Term Examination 2026</div>
+                <div class="rm-title-line">Term 2 &middot; Year: 2026</div>
+            </td>
+        </tr>
+    </table>
+    <table class="rm-pupil">
+        <tr>
+            <td class="rm-pupil-name">
+                <div class="rm-label">Report for</div>
+                <div class="rm-student">Zawadi Imani Mwendwa-Baraka</div>
+            </td>
+            <td class="rm-pupil-fact">
+                <div class="rm-label">Assessment No</div>
+                <div class="rm-fact">A000123456</div>
+            </td>
+            <td class="rm-pupil-fact">
+                <div class="rm-label">Grade</div>
+                <div class="rm-fact">Grade 7 East</div>
+            </td>
+            <td class="rm-pupil-wide">
+                <div class="rm-label">Tutor</div>
+                <div class="rm-fact">Mr. Baraka Juma Otieno</div>
+            </td>
+        </tr>
+    </table>
+    <table class="rm-table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>SUBJECTS</th>
+                <th class="rm-right">PERCENTAGE (%)</th>
+                <th class="rm-right">PERFORMANCE LEVEL</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td class="rm-no">1</td>
+                <td class="rm-subject">English</td>
+                <td class="rm-mark">69</td>
+                <td class="rm-level">Meeting Expectations</td>
+            </tr>
+            <tr>
+                <td class="rm-no">2</td>
+                <td class="rm-subject">Kiswahili</td>
+                <td class="rm-mark">58</td>
+                <td class="rm-level">Approaching Expectations</td>
+            </tr>
+            <tr>
+                <td class="rm-no">3</td>
+                <td class="rm-subject">Mathematics</td>
+                <td class="rm-mark">81</td>
+                <td class="rm-level">Exceeding Expectations</td>
+            </tr>
+            <tr>
+                <td class="rm-no">4</td>
+                <td class="rm-subject">Integrated Science</td>
+                <td class="rm-mark">70</td>
+                <td class="rm-level">Meeting Expectations</td>
+            </tr>
+            <tr>
+                <td class="rm-no">5</td>
+                <td class="rm-subject">Health Education</td>
+                <td class="rm-mark">88</td>
+                <td class="rm-level">Exceeding Expectations</td>
+            </tr>
+            <tr>
+                <td class="rm-no">6</td>
+                <td class="rm-subject">Pre-Technical and Pre-Career Education</td>
+                <td class="rm-mark">49</td>
+                <td class="rm-level">Approaching Expectations</td>
+            </tr>
+            <tr>
+                <td class="rm-no">7</td>
+                <td class="rm-subject">Social Studies</td>
+                <td class="rm-mark">61</td>
+                <td class="rm-level">Meeting Expectations</td>
+            </tr>
+            <tr>
+                <td class="rm-no">8</td>
+                <td class="rm-subject">Christian Religious Education</td>
+                <td class="rm-mark">77</td>
+                <td class="rm-level">Meeting Expectations</td>
+            </tr>
+            <tr>
+                <td class="rm-no">9</td>
+                <td class="rm-subject">Business Studies</td>
+                <td class="rm-mark">52</td>
+                <td class="rm-level">Approaching Expectations</td>
+            </tr>
+            <tr>
+                <td class="rm-no">10</td>
+                <td class="rm-subject">Agriculture and Nutrition</td>
+                <td class="rm-mark">ABS</td>
+                <td class="rm-level">-</td>
+            </tr>
+            <tr>
+                <td class="rm-no">11</td>
+                <td class="rm-subject">Life Skills Education</td>
+                <td class="rm-mark">38</td>
+                <td class="rm-level">Below Expectations</td>
+            </tr>
+            <tr>
+                <td class="rm-no">12</td>
+                <td class="rm-subject">Creative Arts and Sports</td>
+                <td class="rm-mark">74</td>
+                <td class="rm-level">Meeting Expectations</td>
+            </tr>
+        </tbody>
+        <tfoot>
+            <tr>
+                <td class="rm-no"></td>
+                <td class="rm-total-label">TOTAL MARK</td>
+                <td class="rm-mark">643</td>
+                <td class="rm-level">ME</td>
+            </tr>
+        </tfoot>
+    </table>
+    <div class="rm-remarks">
+        <div class="rm-label">Class Teacher's Remarks</div>
+        <div class="rm-remarks-text">Zawadi is a diligent and courteous learner who has improved steadily in English and Mathematics this term. She should revise Business Studies and Life Skills more regularly, hand in her assignments on time, and sit the Agriculture assessment she missed.<br />
+With consistent effort she can reach Exceeding Expectations in most learning areas next term.</div>
+    </div>
+    <table class="rm-facts">
+        <tr>
+            <td class="rm-first">
+                <div class="rm-label">Fee balance</div>
+                <div class="rm-value">KES 12,500.00</div>
+            </td>
+            <td>
+                <div class="rm-label">Next Term Feeding Amount</div>
+                <div class="rm-rule"></div>
+            </td>
+            <td>
+                <div class="rm-label">Closing Date</div>
+                <div class="rm-value">7 Aug 2026</div>
+            </td>
+            <td>
+                <div class="rm-label">Opening Date</div>
+                <div class="rm-value">31 Aug 2026</div>
+            </td>
+        </tr>
+    </table>
+    <table class="rm-sign">
+        <tr>
+            <td>
+                <div class="rm-sign-line"></div>
+                <div class="rm-label">Head Teacher Signature</div>
+                <div class="rm-sign-name">Mrs. Neema Wanjiru Kiptoo</div>
+            </td>
+            <td class="rm-sign-last">
+                <div class="rm-sign-line"></div>
+                <div class="rm-label">Parents Signature</div>
+            </td>
+        </tr>
+    </table>
+    <div class="rm-footer">This performance report must reach the parent or guardian; failure to deliver it will be treated as an indiscipline case.</div>
+</div>
+</body>
+</html>

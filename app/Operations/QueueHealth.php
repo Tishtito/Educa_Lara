@@ -18,10 +18,10 @@ use Throwable;
  * never disagree about what "healthy" means.
  *
  * Unhealthy when any of:
- *   - a worker in config('educa.queue.workers') has not sent a heartbeat
+ *   - a worker in config('elimupass.queue.workers') has not sent a heartbeat
  *     recently. Caught even when its queue is empty, which queue size alone
  *     would never reveal.
- *   - a job has been waiting longer than educa.queue.stall_minutes: workers
+ *   - a job has been waiting longer than elimupass.queue.stall_minutes: workers
  *     are alive but not keeping up, or are stuck.
  *   - the scheduler has not run ops:check-queue recently: the stale-results
  *     safety net and the alert mail have both stopped.
@@ -54,6 +54,24 @@ class QueueHealth
     }
 
     /**
+     * Configured workers nothing has ever reported in as: the Supervisor
+     * program's connection or --queue differs from config, so its heartbeat
+     * goes under another key and the queues it does not name are never drained.
+     *
+     * Deliberately not "stale": a worker that crashed still has its key (kept a
+     * day), and the deploy that asks this may be the one carrying its fix.
+     *
+     * @return array<string, array{connection: string, queues: string}> by program name
+     */
+    public function unregisteredWorkers(): array
+    {
+        return array_filter(
+            config('elimupass.queue.workers', []),
+            fn (array $worker) => $this->cache->get(self::heartbeatKey($worker['connection'], $worker['queues'])) === null,
+        );
+    }
+
+    /**
      * @return array{
      *     healthy: bool,
      *     problems: list<string>,
@@ -69,10 +87,10 @@ class QueueHealth
         $problems = [];
         $workers = [];
 
-        $heartbeatMax = (int) config('educa.queue.heartbeat_max_age_seconds');
-        $stallSeconds = (int) config('educa.queue.stall_minutes') * 60;
+        $heartbeatMax = (int) config('elimupass.queue.heartbeat_max_age_seconds');
+        $stallSeconds = (int) config('elimupass.queue.stall_minutes') * 60;
 
-        foreach (config('educa.queue.workers', []) as $name => $worker) {
+        foreach (config('elimupass.queue.workers', []) as $name => $worker) {
             $beat = $this->cache->get(self::heartbeatKey($worker['connection'], $worker['queues']));
             $beatAge = $beat === null ? null : $now - (int) $beat;
 
@@ -111,7 +129,7 @@ class QueueHealth
 
         if ($schedulerAge === null) {
             $problems[] = 'The scheduler has never run ops:check-queue.';
-        } elseif ($schedulerAge > (int) config('educa.queue.scheduler_max_age_seconds')) {
+        } elseif ($schedulerAge > (int) config('elimupass.queue.scheduler_max_age_seconds')) {
             $problems[] = "The scheduler last ran {$schedulerAge}s ago.";
         }
 

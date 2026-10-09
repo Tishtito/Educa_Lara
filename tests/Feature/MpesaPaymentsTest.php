@@ -221,7 +221,7 @@ class MpesaPaymentsTest extends TestCase
         $this->stk('12345')->assertUnprocessable()->assertJsonValidationErrors('phone');
 
         SchoolSubscription::query()->where('school_id', $this->school->id)->update(['price_kes' => null]);
-        $this->stk()->assertUnprocessable()->assertJsonPath('errors.phone.0', 'Your subscription price has not been set yet. Contact Educa.');
+        $this->stk()->assertUnprocessable()->assertJsonPath('errors.phone.0', 'Your subscription price has not been set yet. Contact Elimu Pass.');
 
         SchoolSubscription::query()->where('school_id', $this->school->id)->update(['price_kes' => 12000]);
         config(['services.mpesa.passkey' => null]);

@@ -1,6 +1,6 @@
 # Importing a school from legacy Educa
 
-How a school running the old PHP system (`Educa_vol_1`) is brought into Educa:
+How a school running the old PHP system (`Educa_vol_1`) is brought into Elimu Pass:
 repeatably while legacy is still in use, then once more at cutover.
 
 One legacy school is **three databases** — lower classes (Grades 1-3), upper
@@ -165,7 +165,7 @@ lists they need to check; never send the file outside the school.
 
 ## What the import does with the data
 
-| Legacy | Educa |
+| Legacy | Elimu Pass |
 |---|---|
 | Three databases | One school; levels lower primary, upper primary, junior secondary |
 | `point_boundaries` | The section's own grading scale, set as the level default. Lowest band widened to 0 (JSS started at 1). Per-subject rows kept as a `legacy_broken` scale, never used |
@@ -204,14 +204,14 @@ touches a password the person has already changed.
    php artisan legacy:import --school=gatimu --final
    php artisan legacy:verify --school=gatimu               # must exit 0
    ```
-   `--final` opens exams still `Scheduled` in legacy for marking in Educa.
+   `--final` opens exams still `Scheduled` in legacy for marking in Elimu Pass.
 5. Set the school active, hand staff their sign-in (school, username, **old**
    password; they will be asked for a new one).
 6. Keep the final export and the verification report, both private, until the
-   school has run a full term on Educa. Then delete the local legacy databases
+   school has run a full term on Elimu Pass. Then delete the local legacy databases
    and the `educa_legacy` user.
 
-Do not run `legacy:import` again after staff have started working in Educa: a
+Do not run `legacy:import` again after staff have started working in Elimu Pass: a
 re-run treats legacy as the source of truth for everything it imported.
 
 ---

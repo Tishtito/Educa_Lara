@@ -20,7 +20,7 @@ class SubscriptionLockTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** Every route the lock must cover, so a new exam route cannot slip out of it unnoticed. */
+    /** Every route the lock must cover, so a new exam or timetable route cannot slip out of it unnoticed. */
     private const LOCKED = [
         'POST api/exams',
         'GET api/exams/{exam}/setup',
@@ -44,6 +44,34 @@ class SubscriptionLockTest extends TestCase
         'PUT api/exams/{exam}/report-entries',
         'GET api/exams/{exam}/stream-list',
         'GET api/exams/{exam}/statistics',
+        'GET api/timetable/bell-schedules',
+        'PUT api/timetable/bell-schedules',
+        'POST api/timetable/bell-schedules/defaults',
+        'DELETE api/timetable/bell-schedules/{bellSchedule}',
+        'GET api/timetable/requirements',
+        'PUT api/timetable/requirements',
+        'POST api/timetable/requirements/copy-year',
+        'GET api/timetables/readiness',
+        'POST api/timetables',
+        'GET api/timetables',
+        'GET api/timetables/{timetable}',
+        'GET api/timetables/{timetable}/classes/{schoolClass}',
+        'GET api/timetables/{timetable}/teachers/{user}',
+        'POST api/timetables/{timetable}/publish',
+        'POST api/timetables/{timetable}/duplicate',
+        'DELETE api/timetables/{timetable}',
+        'GET api/timetables/{timetable}/lessons/{lesson}/options',
+        'PATCH api/timetables/{timetable}/lessons/{lesson}',
+        'GET api/teaching-assignments',
+        'PUT api/classes/{schoolClass}/teaching-assignments',
+        'POST api/teaching-assignments/from-examiners',
+        'POST api/teaching-assignments/copy-year',
+        'GET api/teacher-subjects',
+        'PUT api/staff/{user}/teacher-subjects',
+        'POST api/teacher-subjects/copy-year',
+        'POST api/teacher-subjects/from-examiners',
+        'GET api/me/timetable',
+        'GET api/my/classes/{schoolClass}/timetable',
     ];
 
     private School $school;
@@ -93,7 +121,10 @@ class SubscriptionLockTest extends TestCase
         foreach (['admin', 'teacher', 'examiner'] as $username) {
             foreach (self::LOCKED as $route) {
                 [$method, $uri] = explode(' ', $route, 2);
-                $url = '/'.strtr($uri, ['{exam}' => (string) $this->exam->id, '{enrolment}' => '1', '{batch}' => '1']);
+                $url = '/'.strtr($uri, [
+                    '{exam}' => (string) $this->exam->id, '{enrolment}' => '1', '{batch}' => '1',
+                    '{timetable}' => '1', '{lesson}' => '1', '{schoolClass}' => '1', '{user}' => '1', '{bellSchedule}' => '1',
+                ]);
 
                 $this->app['auth']->forgetGuards();
                 $this->actingAs($this->user($username), 'sanctum')
@@ -157,7 +188,7 @@ class SubscriptionLockTest extends TestCase
 
     public function test_new_schools_start_on_the_configured_trial(): void
     {
-        config(['educa.billing.trial_days' => 14]);
+        config(['elimupass.billing.trial_days' => 14]);
         $school = School::query()->create(['name' => 'New School', 'slug' => 'new-school']);
 
         $subscription = SchoolSubscription::query()->where('school_id', $school->id)->sole();

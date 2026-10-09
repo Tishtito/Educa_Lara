@@ -1,6 +1,6 @@
 # Deploying to a VPS — queue workers and scheduler
 
-How the background queue serves Educa in production, and what to do on the
+How the background queue serves Elimu Pass in production, and what to do on the
 server so it keeps doing so. Follows the same pattern as Land Connect on the
 Codepasstech VPS: nginx + PHP-FPM, Supervisor for workers, cron for the
 scheduler, everything running as `www-data`.
@@ -28,7 +28,7 @@ marking, marksheet and marklist responses), but nothing updates.
 | Piece | What | Where |
 |---|---|---|
 | `educa-results` ×2 | `queue:work database --queue=results` — result recomputation | Supervisor |
-| `educa-general` ×1 | `queue:work database-long --queue=reports,notifications,default` — report PDFs, notifications, anything else | Supervisor |
+| `educa-general` ×1 | `queue:work database-long --queue=timetables,reports,notifications,default` — timetable generation, report PDFs, notifications, anything else | Supervisor |
 | Scheduler | `schedule:run` every minute (`routes/console.php`) | cron |
 | Queue store | MySQL `jobs` / `failed_jobs` tables | database driver |
 | Locks, heartbeats, restart signal | `cache` / `cache_locks` tables | database cache store |
@@ -134,6 +134,26 @@ Supervisor starts it again on the new code. Supervisor's `stopwaitsecs` (150 s /
 PDF midway.
 
 The same applies to **any `.env` or config change**, even without a deploy.
+
+### When the workers change
+
+`queue:restart` restarts each worker with the command line Supervisor already
+has. A release that adds, removes or reorders a queue in
+`config('elimupass.queue.workers')` therefore needs the Supervisor file
+installed **by hand, before the deploy** (the deploy user has no sudo):
+
+```bash
+sudo cp deploy/supervisor/educa-worker.conf /etc/supervisor/conf.d/   # then redo the path substitutions
+sudo supervisorctl reread
+sudo supervisorctl update          # restarts only the programs whose command changed
+sudo supervisorctl status educa:*
+```
+
+Skip it and the old worker keeps running: `/up` reports the program as never
+having reported in (its heartbeat is under the old `--queue`), and jobs on the
+new queue are never picked up. `deploy.sh` runs `php artisan ops:check-workers`
+before migrating and stops there if a configured worker has never run. Wait for
+the new worker's first heartbeat (up to 30 s) before deploying again.
 
 ---
 

@@ -21,6 +21,7 @@ use App\Domain\Reporting\Enums\ReportLayout;
 use App\Domain\Reporting\Exceptions\ReportCardUnavailable;
 use App\Domain\Reporting\Services\ReportCardBuilder;
 use App\Domain\Tenancy\Models\School;
+use App\Domain\Tenancy\Models\SchoolSetting;
 use Database\Seeders\DemoSchoolSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -113,6 +114,25 @@ class ReportCardContentTest extends TestCase
         $this->assertSame('Gatimu Primary School', $card['school']['name']);
         $this->assertSame('P.O. Box 194-10100, Nyeri', $card['school']['address']);
         $this->assertSame('Mary Wanjiku', $card['head_teacher']);
+    }
+
+    public function test_a_card_carries_the_schools_template(): void
+    {
+        // Classic until the school chooses: every card printed before templates
+        // existed was Classic.
+        $this->assertSame('classic', $this->firstCard($this->endTerm, ReportLayout::SINGLE)['template']);
+
+        SchoolSetting::create(['school_id' => $this->school->id, 'key' => 'report_card.template', 'value' => 'formal']);
+
+        $this->assertSame('formal', $this->firstCard($this->endTerm, ReportLayout::SINGLE)['template']);
+        $this->assertSame('formal', $this->firstCard($this->endTerm, ReportLayout::TERM)['template']);
+    }
+
+    public function test_a_template_setting_this_code_does_not_know_prints_classic(): void
+    {
+        SchoolSetting::create(['school_id' => $this->school->id, 'key' => 'report_card.template', 'value' => 'retired-design']);
+
+        $this->assertSame('classic', $this->firstCard($this->endTerm, ReportLayout::SINGLE)['template']);
     }
 
     public function test_term_dates_come_from_this_term_and_the_next(): void
@@ -280,6 +300,11 @@ class ReportCardContentTest extends TestCase
         };
 
         $withEight = $count();
+
+        // Reading the template costs nothing: it rides on the settings the
+        // school is already loaded with.
+        SchoolSetting::create(['school_id' => $this->school->id, 'key' => 'report_card.template', 'value' => 'modern']);
+        $this->assertSame($withEight, $count());
 
         // Double the class: copy each pupil's result and scores onto a new pupil.
         foreach (StudentEnrolment::query()->where('class_id', $this->class->id)->get() as $i => $e) {

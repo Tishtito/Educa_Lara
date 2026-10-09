@@ -100,9 +100,9 @@ class Subscriptions
     public function startTrial(School $school): SchoolSubscription
     {
         return SchoolSubscription::query()->firstOrCreate(['school_id' => $school->id], [
-            'cycle_months' => config('educa.billing.default_cycle_months'),
+            'cycle_months' => config('elimupass.billing.default_cycle_months'),
             'price_kes' => null,
-            'paid_until' => $this->today($school)->addDays(max(1, (int) config('educa.billing.trial_days')) - 1)->toDateString(),
+            'paid_until' => $this->today($school)->addDays(max(1, (int) config('elimupass.billing.trial_days')) - 1)->toDateString(),
             'is_trial' => true,
             'credit_kes' => 0,
         ]);

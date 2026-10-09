@@ -93,7 +93,7 @@ class PasswordResetTest extends TestCase
     {
         $this->forgot('jkamau');
 
-        Notification::assertSentTo($this->teacher, PasswordResetLink::class, fn (PasswordResetLink $n) => str_starts_with($n->url, config('educa.apps.portal_url').'/reset-password/')
+        Notification::assertSentTo($this->teacher, PasswordResetLink::class, fn (PasswordResetLink $n) => str_starts_with($n->url, config('elimupass.apps.portal_url').'/reset-password/')
             && $n instanceof ShouldBeEncrypted
             && $n->queue === 'notifications');
     }
@@ -127,7 +127,7 @@ class PasswordResetTest extends TestCase
 
         $this->forgot('root')->assertAccepted();
 
-        Notification::assertSentTo($platform, PasswordResetLink::class, fn (PasswordResetLink $n) => str_starts_with($n->url, config('educa.apps.admin_url').'/reset-password/'));
+        Notification::assertSentTo($platform, PasswordResetLink::class, fn (PasswordResetLink $n) => str_starts_with($n->url, config('elimupass.apps.admin_url').'/reset-password/'));
     }
 
     // ---------------------------------------------------------------- using
@@ -169,7 +169,7 @@ class PasswordResetTest extends TestCase
         $this->forgot('jkamau');
         $this->getJson("/api/auth/reset-password/{$first}")->assertStatus(410)->assertJsonPath('reason', 'invalid');
 
-        $this->travel(config('educa.accounts.reset_ttl_minutes') + 1)->minutes();
+        $this->travel(config('elimupass.accounts.reset_ttl_minutes') + 1)->minutes();
         $tokens = [];
         Notification::assertSentTo($this->teacher, PasswordResetLink::class, function (PasswordResetLink $n) use (&$tokens) {
             $tokens[] = basename($n->url);

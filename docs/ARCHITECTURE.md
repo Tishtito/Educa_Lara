@@ -1,6 +1,6 @@
-# Educa — Architecture
+# Elimu Pass — Architecture
 
-Educa is a multi-school (SaaS) rewrite of `Educa_vol_1`, a PHP school-management
+Elimu Pass is a multi-school (SaaS) rewrite of `Educa_vol_1`, a PHP school-management
 system deployed as four near-duplicate codebases against three unrelated MySQL
 databases. This document records the decisions that shape the rewrite and why
 each one exists, because most of them are responses to a specific defect in the
@@ -418,9 +418,43 @@ publication); closing date, next opening date and next term's feeding amount
 from `terms`; the head teacher's name from settings. Signatures stay blank
 lines. Anything not filled in prints legacy's blank line.
 
-**Rendering.** dompdf with the ported legacy print stylesheet
-(`resources/views/reports/report-card.css`; table layout, one A4 page per
-student). Locked down harder than legacy, which enabled remote loading: remote
+**Templates.** A school chooses the design its cards are printed in
+(`ReportTemplate`: `classic` — the ported legacy card and the default —
+`modern`, `formal`; school setting `report_card.template`, under
+`manage_school_profile`). A template changes how a card looks, never what it
+says: all three print the same builder payload. Not to be confused with
+`ReportLayout`, which is the card's content.
+
+- The template is **on the card** (`template` in the payload), not looked up at
+  render time, so publication freezes it with everything else: an issued card
+  keeps the design it went home in, whatever the school chooses later. A
+  snapshot row's template is fixed for good — freezing the exam again (the
+  legacy importer's finalise step does, on every run) carries the stored
+  template over, so a second run still changes nothing.
+- Cards frozen before templates existed have no `template` key. They read as
+  `classic` on the way out and are never rewritten: the checksum is over what
+  was issued.
+- `GET school/report-card-templates/{template}/preview` prints
+  `ReportCardSample` — a made-up pupil under the school's own name and logo. It
+  reads no pupil data and sits outside `subscribed`.
+- **Adding a template:** a case in `ReportTemplate` (with label and
+  description) and `resources/views/reports/templates/<value>/card.blade.php`
+  + `card.css`. Every selector goes under a prefix of its own (`rp-` classic,
+  `rm-` modern, `rf-` formal) and nothing styles `body` or changes `@page`,
+  because one document can mix templates (a class batch of cards issued under
+  different ones) and gets each stylesheet once. Add it to nothing else: the
+  settings API, picker, renderer and the one-page tests in `ReportCardApiTest`
+  go by `ReportTemplate::cases()`. Never rename or remove a case that cards
+  could have been issued with. The static designs the new templates were
+  ported from are in `design/report-cards/`.
+- **Capacity.** Classic's stylesheet is legacy's, unchanged, and holds about
+  ten subjects on a single-exam card, or six subjects plus four strand rows on
+  a term card, before a second page. Modern and Formal hold twelve subjects
+  plus seven strand rows. The sample card is sized to fit Classic.
+
+**Rendering.** dompdf, each card through its template's view and print
+stylesheet (`resources/views/reports/templates/<template>/`; table layout, one
+A4 page per student). Locked down harder than legacy, which enabled remote loading: remote
 resources, PHP and JavaScript are off, the filesystem is chrooted to the report
 views, and the logo is read from the school's storage and inlined. Teacher text
 is escaped.
@@ -511,7 +545,103 @@ the commands:
 
 ---
 
-## 7. Layout
+## 7. Timetabling
+
+New build, not conversion: legacy had no timetable. The design starts from the
+standalone CBC generator (`../Timetable-Generater--CBC-`) and closes its defects.
+Code in `app/Domain/Timetabling/`.
+
+### Inputs
+
+| Table | Holds | Replaces (CBC generator) |
+|---|---|---|
+| `bell_schedules` + `bell_periods` | The school day per level (NULL level = school default): days, and lesson/break/lunch periods with real times | One periods-per-day number per level, with clock times hardcoded in JavaScript (max 9) |
+| `lesson_requirements` | Lessons per week per grade and subject, with a daily limit and how many are doubles | `grade_subject_requirements` |
+| `teacher_subjects` | The level subjects each teacher can teach in a year (ticks) | `teacher_subject_grades`, without its NULL "all streams" rows |
+| `teaching_assignments` | Optional **pin**: one teacher for a class, subject and year | — |
+
+A teacher ticks subjects, not classes; **the generator decides which classes
+each one gets** (`TeacherAllocator`, pure PHP, seeded). A pin in
+`teaching_assignments` always wins over the ticks, so an admin can still fix a
+class to a person. Both are separate from `examiner_assignments` on purpose:
+who marks a subject is not always who teaches it. `POST
+/teacher-subjects/from-examiners` ticks each examiner's subjects (and
+`/teaching-assignments/from-examiners` pins), so a school does not enter the
+mapping twice. Only active staff count.
+
+The allocator takes every class-subject a timetable needs, fixes the pinned
+ones (counted in their teacher's load), then decides the rest scarcest first
+(fewest teachers who ticked it), each to the least-loaded teacher who still
+has room. A teacher's room is the distinct non-overlapping lesson times across
+every class they could be given. A locked lesson kept by `keep_locked_from`
+keeps its teacher while they still tick the subject (or are pinned to it).
+
+### Generation
+
+`POST /timetables` checks readiness (`ReadinessCheck`: missing bell schedule,
+lessons per week, teachers; inactive teachers; more lessons than periods; a
+teacher with more lessons than their classes have periods; daily limits that
+cannot fit; a subject nobody ticked or pinned, `missing_teacher`; a subject
+whose unpinned classes need more lessons than its teachers have periods,
+`subject_capacity`), answers 422 with the list if anything blocks, and otherwise
+records a `queued` timetable and dispatches `GenerateTimetable` on the
+`timetables` queue (long connection). One run per school and year at a time; a
+run silent for `elimupass.timetable.stale_minutes` is presumed lost.
+
+`TimetableSolver` is pure PHP with no database (`SolverInput` → `SolverResult`),
+so it can be unit-tested and later replaced by an external solver:
+
+- hardest lessons first (doubles, busiest teachers, fullest classes);
+- greedy placement by soft cost (spread a subject over the week, no
+  back-to-back repeats, even days for classes and teachers);
+- a lesson with nowhere to go evicts at most two lessons in its way and
+  re-places them, two levels deep, before the attempt gives up on it — the CBC
+  generator restarted the whole school instead, up to 80 times;
+- local search improves the soft cost once everything fits;
+- seeded: the seed is stored, so a run can be reproduced.
+
+`TimetableGenerator::run` allocates teachers with the timetable's seed, then
+solves. If the allocation leaves a class without a teacher, or the solve fails
+with a teacher busy, it re-allocates with seed + 1, + 2, … — at most five
+allocations, all inside `elimupass.timetable.time_limit_ms` (`stats.allocations`).
+When every subject is pinned there is nothing to re-allocate and the solver
+gets the whole time limit.
+
+**Teacher clashes are clock-time overlaps, not equal period numbers**: levels
+can run different bells (30-minute lessons in lower primary, 40 in junior
+secondary), so period 3 of one is not period 3 of the other. That is why
+`timetable_lessons` has a unique index for the class slot but none for the
+teacher; the solver and `TimetableEditor` check overlaps.
+
+A failed run stores `diagnostics` naming each lesson it could not place and why
+(class full, teacher busy at every free period, daily limit, no consecutive
+periods for a double). A successful one writes every lesson in one
+transaction; times are **snapshotted** onto the lessons, so editing a bell
+schedule later never moves a timetable already issued.
+
+### Lifecycle
+
+`queued → generating → draft | failed`, then `draft → published → archived`.
+Only a draft can be edited: move a lesson to a free period or swap it
+(`TimetableEditor` refuses a teacher clash with 409, and warns when a daily
+limit is exceeded), and lock lessons so `keep_locked_from` regeneration keeps
+them. Publishing archives the previously published timetable for the same year
+and term in the same transaction. A published timetable is changed by
+duplicating it as a draft and publishing that.
+
+### Who sees what
+
+`manage_timetables` (set-up, generate, edit, publish) and `view_timetables`
+(any class or teacher) are admin permissions. `view_own_timetable` is a
+staff-portal duty (`DefaultRoles::PORTAL_ONLY`; default for class teachers and
+examiners): `GET /me/timetable` returns the signed-in teacher's lessons from the
+**published** timetable only (current year; the current term's if one exists,
+else the year's), and `GET /my/classes/{class}/timetable` a class teacher's
+class (`ClassTeachingAccess`). Every timetable route is behind `subscribed`.
+
+---
+
+## 8. Layout
 
 ```
 app/Domain/
@@ -523,6 +653,8 @@ app/Domain/
   People/       User, Role, Student, StudentEnrolment, assignments, UserPreference
   Tenancy/      School, SchoolDomain, SchoolSetting, TenantManager, TenantScope,
                 BelongsToSchool
+  Timetabling/  BellSchedule, BellPeriod, LessonRequirement, TeachingAssignment,
+                Timetable, TimetableLesson + Solver/ (pure) + Services/
   LegacyImport/ LegacyImporter + Steps/, Profiles/ (per-section curriculum),
                 Mapping/ (MigrationMap, class and name parsing), Review/
                 (DecisionBook), Verification/, Repositories/ (legacy reads)
@@ -539,7 +671,7 @@ happened to have resolved.
 
 ---
 
-## 8. Conversion status
+## 9. Conversion status
 
 Verified 2026-09-13: `migrate:fresh --seed` clean on MySQL, 261/261 tests
 passing, the computation, marking, queue-operations and report-card code mutation-checked (42 injected bugs, all caught),
@@ -572,12 +704,13 @@ student).
 | People API: staff accounts (temporary passwords, forced change, last-admin guard), class teacher and examiner assignments (copy between years, inferred legacy grants confirmed on save), pupils (admit, move, status, results history, delete-if-unrecorded; assessment numbers unique per school), CSV import (all-or-nothing, dry run), year-end promotion (dry run on the same code path, never re-places a pupil) | done, tested |
 | Analytics (read-only): grade-wide stream list, exam statistics (MSS by class/grade/level/school, subject means), dashboard with set-up gaps; school profile + logo upload (feeds report card PDFs); platform school provisioning and suspension | done, tested |
 | Staff portal API for `../Educa_Portal`: my assignments, my exams with marking progress (`MarkingOverview`, shared with the marking tab), class-teacher pupils (roster, admit into own class, move out, profile and results of pupils taught — `ClassTeachingAccess`); mark list now limited to the class teacher's own classes and to classes in the exam | done, tested |
-| Email: `EducaMail` base (queued after commit, school-branded sender, reply-to school, delivery log, encrypted secrets), `mail:test`; staff invitations by email (resend/cancel, first admin of a new school), forgot-password links, password-changed notices — `docs/email.md` | done, tested |
+| Email: `ElimuPassMail` base (queued after commit, school-branded sender, reply-to school, delivery log, encrypted secrets), `mail:test`; staff invitations by email (resend/cancel, first admin of a new school), forgot-password links, password-changed notices — `docs/email.md` | done, tested |
 | Permissions: registry in code + `permissions:sync`, `can:` on every route, per-school role permissions, schools' own roles, no-escalation, `/auth/me` permissions, Roles & permissions screen — `docs/permissions.md` | done, tested |
 | Sign-in: Continue with Google (web, Android, iOS; invitations too), session lifetime + idle expiry + `sessions:prune`, signed-in devices and staff sign-out — `docs/authentication.md` | done, tested (Google verified against a local key set; not yet against real Google clients) |
 | Subscriptions: one per school (price and cycle set by the superadmin, trial, credit balance), `subscribed` lock (402) on exams, marking, mark lists and report cards, M-Pesa STK push + Paybill webhooks with reconciliation, receipts and reminders, platform billing — `docs/billing.md` | done, tested (Daraja faked; not yet run against the sandbox) |
 | SMS | not started — legacy only ever appended to `logs/sms.log`; no gateway existed |
-| Fees, attendance, timetable, parent/student portals | absent from legacy; new build, not conversion |
+| Timetables: bell schedules per level (CBC defaults), lessons per week, subject teachers (filled from examiners, copied between years), readiness check, queued generation with a repairing solver, draft editing (move/swap/lock), publication, staff portal "my timetable" and class timetable | done, tested (`TimetableSolverTest`, `TimetablesApiTest`); new build |
+| Fees, attendance, parent/student portals | absent from legacy; new build, not conversion |
 
 Remaining conversion work, in the order it unblocks the most: the first real
 school's import and cutover, then SMS. The admin app is `../Educa_Admin`; the
@@ -585,7 +718,7 @@ staff portal for class teachers and examiners is `../Educa_Portal`.
 
 ---
 
-## 9. Running it
+## 10. Running it
 
 ```bash
 composer install

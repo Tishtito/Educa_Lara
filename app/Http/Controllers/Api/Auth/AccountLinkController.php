@@ -87,7 +87,7 @@ class AccountLinkController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => str_replace(':minutes', (string) config('educa.accounts.reset_ttl_minutes'), self::FORGOT_MESSAGE),
+            'message' => str_replace(':minutes', (string) config('elimupass.accounts.reset_ttl_minutes'), self::FORGOT_MESSAGE),
         ], 202);
     }
 

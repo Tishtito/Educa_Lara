@@ -51,7 +51,7 @@ return [
     */
 
     // Minutes from sign-in until a token stops working, however much it is used
-    // (default 90 days). The idle limit is educa.sessions.idle_days.
+    // (default 90 days). The idle limit is elimupass.sessions.idle_days.
     'expiration' => (int) env('SANCTUM_EXPIRATION', 60 * 24 * 90) ?: null,
 
     /*

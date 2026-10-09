@@ -25,7 +25,7 @@ use Tests\TestCase;
 
 /**
  * The shared email plumbing every people-facing email goes through
- * (App\Notifications\EducaMail): sender and branding, queueing, the delivery
+ * (App\Notifications\ElimuPassMail): sender and branding, queueing, the delivery
  * log, retention, and the SMTP check command.
  */
 class MailFoundationTest extends TestCase
@@ -63,16 +63,16 @@ class MailFoundationTest extends TestCase
         $this->assertCount(1, $messages);
         $message = $messages[0];
 
-        $this->assertEquals([new Address(config('mail.from.address'), 'Hilltop Primary via Educa')], $message->getFrom());
+        $this->assertEquals([new Address(config('mail.from.address'), 'Hilltop Primary via Elimu Pass')], $message->getFrom());
         $this->assertEquals([new Address('office@hilltop.test', 'Hilltop Primary')], $message->getReplyTo());
-        $this->assertSame("You're invited to Hilltop Primary on Educa", $message->getSubject());
+        $this->assertSame("You're invited to Hilltop Primary on Elimu Pass", $message->getSubject());
 
         $html = (string) $message->getHtmlBody();
         $this->assertStringContainsString('Hilltop Primary', $html);
         $this->assertStringContainsString('Set up your account', $html);
         $this->assertStringContainsString('https://portal.example.test/invite/', $html);
-        $this->assertStringContainsString('Sent by Educa on behalf of Hilltop Primary', $html);
-        $this->assertStringContainsString('#1e3a8a', $html);   // the Educa theme, inlined
+        $this->assertStringContainsString('Sent by Elimu Pass on behalf of Hilltop Primary', $html);
+        $this->assertStringContainsString('#1e3a8a', $html);   // the Elimu Pass theme, inlined
         $this->assertStringContainsString('Set up your account', (string) $message->getTextBody());
     }
 
@@ -85,7 +85,7 @@ class MailFoundationTest extends TestCase
         $message = $this->sentMessages()[0];
         $this->assertEquals([new Address(config('mail.from.address'), config('mail.from.name'))], $message->getFrom());
         $this->assertSame([], $message->getReplyTo());
-        $this->assertStringContainsString('contact Educa support', (string) $message->getTextBody());
+        $this->assertStringContainsString('contact Elimu Pass support', (string) $message->getTextBody());
     }
 
     public function test_a_sent_email_is_logged_without_its_link(): void

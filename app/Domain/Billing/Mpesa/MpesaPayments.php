@@ -22,7 +22,7 @@ use Illuminate\Validation\ValidationException;
  * pending payment keyed by Safaricom's CheckoutRequestID, and the callback (or,
  * if that never arrives, a status query) settles it.
  *
- * Paybill (C2B): anyone pays the Educa Paybill with the school code as the
+ * Paybill (C2B): anyone pays the Elimu Pass Paybill with the school code as the
  * account number. The confirmation webhook credits that school, or keeps the
  * payment as unmatched for the superadmin to assign. Money is never bounced.
  *
@@ -49,7 +49,7 @@ class MpesaPayments
         $amount = $subscription ? $this->subscriptions->amountDue($subscription) : null;
 
         if ($amount === null) {
-            throw ValidationException::withMessages(['phone' => ['Your subscription price has not been set yet. Contact Educa.']]);
+            throw ValidationException::withMessages(['phone' => ['Your subscription price has not been set yet. Contact Elimu Pass.']]);
         }
 
         if ($amount === 0) {
@@ -67,7 +67,7 @@ class MpesaPayments
             throw SetupConflict::inUse('A new M-Pesa prompt', 'the last one sent is still waiting for a PIN', 'Check the phone, or try again in two minutes.');
         }
 
-        $response = $this->daraja->stkPush($phone, $amount, $school->slug, 'Educa renewal');
+        $response = $this->daraja->stkPush($phone, $amount, $school->slug, 'Elimu Pass renewal');
 
         return SubscriptionPayment::query()->create([
             'school_id' => $school->id,

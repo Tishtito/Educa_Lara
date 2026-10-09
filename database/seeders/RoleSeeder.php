@@ -38,6 +38,11 @@ class RoleSeeder extends Seeder
                 'name' => 'Examiner',
                 'description' => 'Enters marks for assigned subjects. = legacy examiners table.',
             ],
+            [
+                'slug' => Role::TEACHER,
+                'name' => 'Teacher',
+                'description' => 'Teaches subjects; sees their own timetable in the staff portal.',
+            ],
         ];
 
         foreach ($roles as $role) {

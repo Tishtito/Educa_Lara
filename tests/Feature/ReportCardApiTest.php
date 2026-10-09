@@ -15,13 +15,18 @@ use App\Domain\People\Models\Role;
 use App\Domain\People\Models\StudentEnrolment;
 use App\Domain\People\Models\User;
 use App\Domain\Reporting\Enums\ReportLayout;
+use App\Domain\Reporting\Enums\ReportTemplate;
 use App\Domain\Reporting\Models\ReportCardBatch;
 use App\Domain\Reporting\Models\ReportCardEntry;
+use App\Domain\Reporting\ReportCardSample;
 use App\Domain\Reporting\Services\ReportCardBuilder;
+use App\Domain\Reporting\Services\ReportCardRenderer;
 use App\Domain\Tenancy\Models\School;
+use App\Domain\Tenancy\Models\SchoolSetting;
 use App\Jobs\GenerateReportCardBatch;
 use Database\Seeders\DemoSchoolSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -185,6 +190,202 @@ class ReportCardApiTest extends TestCase
         $this->assertStringNotContainsString('<img src="http://169.254.169.254', $html);
     }
 
+    // ------------------------------------------------------------- templates
+
+    private function sampleCard(ReportTemplate $template, ReportLayout $layout): array
+    {
+        return app(ReportCardSample::class)->card($this->school->fresh(), $template, $layout);
+    }
+
+    public function test_every_template_prints_one_page_per_pupil_in_both_layouts(): void
+    {
+        // The sample is sized to what Classic, the roomiest-printing template,
+        // holds on a page — so it is one page in all three.
+        foreach (ReportTemplate::cases() as $template) {
+            foreach (ReportLayout::cases() as $layout) {
+                $card = $this->sampleCard($template, $layout);
+                $pdf = app(ReportCardRenderer::class)->pdf([$card, $card, $card]);
+
+                $this->assertSame(3, $this->pageCount($pdf), "{$template->value} / {$layout->value} should print three pupils on three pages.");
+            }
+        }
+    }
+
+    /** A card as large as a school plausibly prints: twelve subjects, and on the term card seven strand rows. */
+    private function worstCaseCard(ReportTemplate $template, ReportLayout $layout): array
+    {
+        $card = $this->sampleCard($template, $layout);
+        $subject = collect($card['rows'])->firstWhere('kind', 'subject');
+        $paper = collect($this->sampleCard($template, ReportLayout::TERM)['rows'])->firstWhere('kind', 'paper');
+        $paper['cells'] = array_slice(array_pad($paper['cells'], 2, $paper['cells'][0]), 0, count($subject['cells']));
+
+        $rows = [];
+        foreach ([2, 2, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0] as $i => $papers) {
+            for ($p = 1; $layout === ReportLayout::TERM && $p <= $papers; $p++) {
+                $rows[] = ['name' => "Strand {$p} of a Subject"] + $paper;
+            }
+            $rows[] = ['name' => $i === 5 ? 'Pre-Technical and Pre-Career Education' : 'Subject Number '.($i + 1)] + $subject;
+        }
+
+        return [
+            'rows' => $rows,
+            'school' => ['name' => 'Example Ridge Junior Academy and Comprehensive School', 'motto' => 'Striving together for knowledge, character and service to the community'] + $card['school'],
+            'entry' => ['class_teacher_remarks' => str_repeat('A diligent and courteous learner who has improved steadily this term. ', 4)."\nWith consistent effort much more is within reach next term."] + $card['entry'],
+        ] + $card;
+    }
+
+    public function test_the_new_templates_hold_a_worst_case_card_on_one_page(): void
+    {
+        // Not asserted for Classic: its legacy stylesheet, kept as it was,
+        // spills a card this size onto a second page.
+        foreach ([ReportTemplate::MODERN, ReportTemplate::FORMAL] as $template) {
+            foreach (ReportLayout::cases() as $layout) {
+                $card = $this->worstCaseCard($template, $layout);
+                $this->assertCount($layout === ReportLayout::TERM ? 19 : 12, $card['rows']);
+
+                $pdf = app(ReportCardRenderer::class)->pdf([$card, $card]);
+
+                $this->assertSame(2, $this->pageCount($pdf), "{$template->value} / {$layout->value} worst case should be one page per pupil.");
+            }
+        }
+    }
+
+    public function test_every_template_prints_a_card_with_nothing_typed_onto_it(): void
+    {
+        foreach (ReportTemplate::cases() as $template) {
+            foreach (ReportLayout::cases() as $layout) {
+                $card = ['term' => null, 'head_teacher' => null, 'entry' => ['class_teacher_remarks' => null, 'fee_balance' => null]]
+                    + $this->sampleCard($template, $layout);
+                $card['school'] = ['motto' => null, 'address' => null, 'phone' => null, 'email' => null, 'logo_path' => null] + $card['school'];
+                $card['class']['class_teacher'] = null;
+
+                $this->assertSame(1, $this->pageCount(app(ReportCardRenderer::class)->pdf([$card])), "{$template->value} / {$layout->value} blank card");
+            }
+        }
+    }
+
+    public function test_every_template_escapes_typed_text(): void
+    {
+        foreach (ReportTemplate::cases() as $template) {
+            $card = $this->sampleCard($template, ReportLayout::TERM);
+            $card['entry']['class_teacher_remarks'] = "<b>bold</b>\n<img src=\"http://169.254.169.254/latest\">";
+            $card['head_teacher'] = '<i>Head</i>';
+            $card['footer'] = '<u>Footer</u>';
+
+            $html = view('reports.document', ['cards' => [$card], 'css' => '', 'logo' => null])->render();
+
+            $this->assertStringContainsString('&lt;b&gt;bold&lt;/b&gt;', $html, $template->value);
+            $this->assertStringContainsString('&lt;i&gt;Head&lt;/i&gt;', $html, $template->value);
+            $this->assertStringContainsString('&lt;u&gt;Footer&lt;/u&gt;', $html, $template->value);
+            $this->assertStringNotContainsString('<img src="http://169.254.169.254', $html, $template->value);
+        }
+    }
+
+    public function test_a_real_card_is_one_page_in_every_template(): void
+    {
+        foreach (ReportTemplate::cases() as $template) {
+            SchoolSetting::query()->updateOrCreate(
+                ['school_id' => $this->school->id, 'key' => 'report_card.template'],
+                ['value' => $template->value],
+            );
+
+            $response = $this->actingAs($this->admin, 'sanctum')
+                ->get("/api/exams/{$this->endTerm->id}/report-cards/{$this->enrolment()->id}/pdf?layout=term");
+
+            $response->assertOk();
+            $this->assertSame(1, $this->pageCount($response->getContent()), "{$template->value} term card");
+        }
+    }
+
+    public function test_a_document_carries_each_templates_stylesheet_once(): void
+    {
+        $captured = null;
+        view()->composer('reports.document', function ($view) use (&$captured): void {
+            $captured = $view->getData()['css'];
+        });
+
+        $classic = $this->sampleCard(ReportTemplate::CLASSIC, ReportLayout::SINGLE);
+        $formal = $this->sampleCard(ReportTemplate::FORMAL, ReportLayout::SINGLE);
+
+        // A class batch of a published exam can hold cards issued under
+        // different templates.
+        $pdf = app(ReportCardRenderer::class)->pdf([$classic, $formal, $classic, $formal]);
+
+        $this->assertSame(4, $this->pageCount($pdf));
+        $this->assertSame(
+            file_get_contents(ReportTemplate::CLASSIC->stylesheetPath())."\n".file_get_contents(ReportTemplate::FORMAL->stylesheetPath()),
+            $captured,
+        );
+    }
+
+    public function test_a_classic_document_is_exactly_the_stylesheet_it_always_had(): void
+    {
+        $captured = null;
+        view()->composer('reports.document', function ($view) use (&$captured): void {
+            $captured = $view->getData()['css'];
+        });
+
+        $card = $this->sampleCard(ReportTemplate::CLASSIC, ReportLayout::TERM);
+        unset($card['template']);   // as a card frozen before templates existed
+
+        app(ReportCardRenderer::class)->pdf([$card, ['template' => 'retired-design'] + $card]);
+
+        $this->assertSame(file_get_contents(ReportTemplate::CLASSIC->stylesheetPath()), $captured);
+    }
+
+    public function test_an_admin_previews_a_template_as_a_pdf_of_a_made_up_pupil(): void
+    {
+        foreach (ReportTemplate::cases() as $template) {
+            foreach (['single', 'term'] as $layout) {
+                $response = $this->actingAs($this->admin, 'sanctum')
+                    ->get("/api/school/report-card-templates/{$template->value}/preview?layout={$layout}");
+
+                $response->assertOk()->assertHeader('Content-Type', 'application/pdf');
+                $this->assertStringStartsWith('%PDF-', $response->getContent());
+                $this->assertSame(1, $this->pageCount($response->getContent()), "{$template->value} / {$layout} preview");
+            }
+        }
+
+        $this->actingAs($this->admin, 'sanctum')->get('/api/school/report-card-templates/classic/preview')->assertOk();
+        $this->actingAs($this->admin, 'sanctum')->getJson('/api/school/report-card-templates/classic/preview?layout=sideways')->assertStatus(422);
+    }
+
+    public function test_an_unknown_template_has_no_preview(): void
+    {
+        $this->actingAs($this->admin, 'sanctum')->getJson('/api/school/report-card-templates/fancy/preview')->assertStatus(404);
+    }
+
+    public function test_a_preview_is_the_schools_own_identity_and_no_pupils_data(): void
+    {
+        $card = $this->sampleCard(ReportTemplate::MODERN, ReportLayout::TERM);
+
+        $this->assertSame('modern', $card['template']);
+        $this->assertSame('Gatimu Primary School', $card['school']['name']);
+        $this->assertSame('Mary Wanjiku', $card['head_teacher']);
+        $this->assertSame(ReportCardBuilder::DEFAULT_FOOTER, $card['footer']);
+        $this->assertSame('Sample Pupil', $card['student']['name']);
+        $this->assertCount(6, array_filter($card['rows'], fn (array $row) => $row['kind'] === 'subject'));
+        $this->assertCount(3, array_filter($card['rows'], fn (array $row) => $row['kind'] === 'paper'));
+        $this->assertCount(8, $this->sampleCard(ReportTemplate::MODERN, ReportLayout::SINGLE)['rows']);
+
+        // The same keys a built card has, so it prints through the same views.
+        $built = $this->tenancy()->asSchool($this->school, fn () => app(ReportCardBuilder::class)->forEnrolment($this->endTerm, $this->enrolment(), ReportLayout::TERM));
+        $this->assertEqualsCanonicalizing(array_keys($built), array_keys($card));
+        $this->assertEqualsCanonicalizing(array_keys($built['rows'][0]), array_keys($card['rows'][0]));
+        $this->assertEqualsCanonicalizing(array_keys($built['totals'][0]), array_keys($card['totals'][0]));
+
+        // Only the school and its settings are read — no pupil, exam or result.
+        $school = $this->school->fresh();
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        app(ReportCardSample::class)->card($school, ReportTemplate::CLASSIC, ReportLayout::SINGLE);
+        $queries = array_column(DB::getQueryLog(), 'query');
+        DB::disableQueryLog();
+
+        $this->assertCount(1, $queries);
+        $this->assertStringContainsString('school_settings', $queries[0]);
+    }
+
     // --------------------------------------------------------------- batches
 
     public function test_a_class_pdf_is_generated_on_the_reports_queue(): void
@@ -200,7 +401,7 @@ class ReportCardApiTest extends TestCase
 
         // The job takes its connection from config (database-long in production,
         // sync under phpunit.xml), never a hardcoded name.
-        config(['educa.queue.long_connection' => 'database-long']);
+        config(['elimupass.queue.long_connection' => 'database-long']);
         $this->assertSame('database-long', (new GenerateReportCardBatch(1))->connection);
     }
 
