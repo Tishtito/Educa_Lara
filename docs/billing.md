@@ -10,6 +10,7 @@ until the school renews. Nothing is ever deleted.
 | Marking: marking overview, marksheets, marks-out-of | Pupils, class pupils (`/my/*`) |
 | Mark lists, stream list, statistics | Staff, assignments, roles |
 | Report cards, PDFs, class batches, remarks | Set-up: calendar, classes, subjects, grading |
+| Timetables, teaching materials (`docs/teaching-materials.md`) | |
 | | School profile, dashboard, the exam list and `/me/*` |
 | | **Billing**, so the school can pay |
 

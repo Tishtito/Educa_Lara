@@ -32,12 +32,14 @@ use App\Http\Controllers\Api\Platform\SchoolController as PlatformSchoolControll
 use App\Http\Controllers\Api\Platform\SubscriptionController as PlatformSubscriptionController;
 use App\Http\Controllers\Api\Portal\ClassPupilsController;
 use App\Http\Controllers\Api\Portal\MeController;
+use App\Http\Controllers\Api\Portal\MyMaterialsController;
 use App\Http\Controllers\Api\Portal\MyTimetableController;
 use App\Http\Controllers\Api\ReferenceDataController;
 use App\Http\Controllers\Api\ReportCardBatchController;
 use App\Http\Controllers\Api\ReportCardController;
 use App\Http\Controllers\Api\ReportCardSettingsController;
 use App\Http\Controllers\Api\ReportEntryController;
+use App\Http\Controllers\Api\Resources\TeachingMaterialController;
 use App\Http\Controllers\Api\SchoolProfileController;
 use App\Http\Controllers\Api\SelectedExamController;
 use App\Http\Controllers\Api\TermController;
@@ -263,6 +265,24 @@ Route::middleware(['auth:sanctum', 'tenant', 'password.changed'])->group(functio
         // The signed-in teacher's own published timetable, and their class's.
         Route::get('me/timetable', [MyTimetableController::class, 'mine'])->middleware('can:view_own_timetable');
         Route::get('my/classes/{schoolClass}/timetable', [MyTimetableController::class, 'forClass'])->middleware('can:view_own_timetable');
+
+        // Teaching materials: files the school shares with its teachers
+        // (docs/teaching-materials.md). Private disk; served only through these routes.
+        Route::middleware('can:manage_teaching_materials')->group(function (): void {
+            Route::get('teaching-materials', [TeachingMaterialController::class, 'index']);
+            Route::get('teaching-materials/summary', [TeachingMaterialController::class, 'summary']);
+            Route::post('teaching-materials', [TeachingMaterialController::class, 'store'])->middleware('throttle:30,1,material-upload');
+            Route::patch('teaching-materials/{material}', [TeachingMaterialController::class, 'update'])->whereNumber('material');
+            Route::post('teaching-materials/{material}/file', [TeachingMaterialController::class, 'replaceFile'])->whereNumber('material')->middleware('throttle:30,1,material-upload');
+            Route::delete('teaching-materials/{material}', [TeachingMaterialController::class, 'destroy'])->whereNumber('material');
+            Route::post('teaching-materials/{material}/restore', [TeachingMaterialController::class, 'restore'])->whereNumber('material')->withTrashed();
+            Route::get('teaching-materials/{material}/download', [TeachingMaterialController::class, 'download'])->whereNumber('material');
+        });
+        Route::middleware('can:view_teaching_materials')->group(function (): void {
+            Route::get('my/teaching-materials', [MyMaterialsController::class, 'index']);
+            Route::get('my/teaching-materials/summary', [MyMaterialsController::class, 'summary']);
+            Route::get('my/teaching-materials/{material}/download', [MyMaterialsController::class, 'download'])->whereNumber('material');
+        });
     });
 
     // Staff accounts, and who teaches and marks what.

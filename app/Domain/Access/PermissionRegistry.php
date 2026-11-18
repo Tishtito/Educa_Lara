@@ -99,6 +99,10 @@ final class PermissionRegistry
         'view_timetables' => ['View all timetables', 'See the timetable of every class and every teacher.', 'Timetable', self::SCHOOL],
         'view_own_timetable' => ['View my timetable', 'See your own published timetable, and your class’s.', 'Timetable', self::SCHOOL],
 
+        // Teaching materials
+        'manage_teaching_materials' => ['Manage teaching materials', 'Upload, edit, publish and remove the files the school shares with its teachers.', 'Teaching materials', self::SCHOOL],
+        'view_teaching_materials' => ['View teaching materials', 'Browse and download the teaching materials the school has published.', 'Teaching materials', self::SCHOOL],
+
         // Staff
         'view_staff' => ['View staff', 'List staff accounts.', 'Staff', self::SCHOOL],
         'create_staff' => ['Create staff', 'Create staff accounts and give them roles.', 'Staff', self::SCHOOL],

@@ -79,7 +79,7 @@ recoverable from the code alone.
    `PermissionsTest` rejects unknown slugs and any `role:` middleware;
    `RouteAccessMatrixTest` pins who reaches every route. `docs/permissions.md`.
 20. **Paid features sit behind `subscribed`.** A new route for exams, marking,
-   mark lists, report cards or timetables goes inside the `subscribed` group in
+   mark lists, report cards, timetables or teaching materials goes inside the `subscribed` group in
    `routes/api.php`; `SubscriptionLockTest` lists every locked route and fails
    until the list is updated. Money only turns into days in
    `SubscriptionLedger`. Billing tables are not tenant-scoped (webhooks have no
