@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace App\Notifications\Account;
 
 use App\Domain\Tenancy\Models\School;
-use App\Notifications\EducaMail;
+use App\Notifications\ElimuPassMail;
 use DateTimeInterface;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Carbon;
 
 /** A security notice, so a password change the person did not make is noticed. */
-class PasswordChanged extends EducaMail
+class PasswordChanged extends ElimuPassMail
 {
     public const SELF = 'self';
 
@@ -43,12 +43,12 @@ class PasswordChanged extends EducaMail
         };
 
         return $this->mailMessage($school)
-            ->subject('Your Educa password was changed')
+            ->subject('Your Elimu Pass password was changed')
             ->greeting("Hello {$notifiable->name},")
             ->line($what)
             ->line('Other devices signed in to this account have been signed out.')
             ->line($school
                 ? "If this wasn't you, contact your school administrator straight away."
-                : "If this wasn't you, contact Educa support straight away.");
+                : "If this wasn't you, contact Elimu Pass support straight away.");
     }
 }

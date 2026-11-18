@@ -1,6 +1,6 @@
 # Importing a school from legacy Educa
 
-How a school running the old PHP system (`Educa_vol_1`) is brought into Educa:
+How a school running the old PHP system (`Educa_vol_1`) is brought into Elimu Pass:
 repeatably while legacy is still in use, then once more at cutover.
 
 One legacy school is **three databases** — lower classes (Grades 1-3), upper
@@ -165,7 +165,7 @@ lists they need to check; never send the file outside the school.
 
 ## What the import does with the data
 
-| Legacy | Educa |
+| Legacy | Elimu Pass |
 |---|---|
 | Three databases | One school; levels lower primary, upper primary, junior secondary |
 | `point_boundaries` | The section's own grading scale, set as the level default. Lowest band widened to 0 (JSS started at 1). Per-subject rows kept as a `legacy_broken` scale, never used |
@@ -174,7 +174,7 @@ lists they need to check; never send the file outside the school.
 | `student_classes` | One enrolment per pupil per year. Two rows in a year: the one that year's results link to wins, then the newest (`origin = resolved_duplicate`) |
 | `exam_results.student_class_id` | Ignored: a result goes to the pupil's enrolment **in the exam's year** (legacy linked 2026 results to 2025 rows). No row that year → placement inferred from the nearest row (`origin = inferred_year`) |
 | Class strings (`grade_2east`, `GRADE 3 EAST`, `7`) | One class per grade and stream, spellings kept as class aliases. `Completed` = left the section |
-| `students.name` | First / middle / last, split losslessly. Admission number `LEG-L-00042` (legacy had none); editable, never overwritten by a later run |
+| `students.name` | First / middle / last, split losslessly. Assessment number `LEG-L-00042` (legacy had none); editable, never overwritten by a later run |
 | Mark columns | Entered scores. Single-paper percentages out of 100; strands and papers raw, out of `marks_out_of` or the profile default (JSS papers 50). Stray lower columns (`LS/SP`, `WRI`, `Integrated`) kept as not-counted subjects |
 | Curriculum changes | Chosen per exam **and class** by which columns hold marks: lower 2026 English = Reading + Grammar and Kiswahili = Kusoma + Lugha where those exist, otherwise the single mark |
 | Totals, means, positions, combined marks | Recomputed. Legacy totals and positions kept on each result (`legacy_*`) for comparison. Ranking uses `legacy_ordinal` ties |
@@ -204,14 +204,14 @@ touches a password the person has already changed.
    php artisan legacy:import --school=gatimu --final
    php artisan legacy:verify --school=gatimu               # must exit 0
    ```
-   `--final` opens exams still `Scheduled` in legacy for marking in Educa.
+   `--final` opens exams still `Scheduled` in legacy for marking in Elimu Pass.
 5. Set the school active, hand staff their sign-in (school, username, **old**
    password; they will be asked for a new one).
 6. Keep the final export and the verification report, both private, until the
-   school has run a full term on Educa. Then delete the local legacy databases
+   school has run a full term on Elimu Pass. Then delete the local legacy databases
    and the `educa_legacy` user.
 
-Do not run `legacy:import` again after staff have started working in Educa: a
+Do not run `legacy:import` again after staff have started working in Elimu Pass: a
 re-run treats legacy as the source of truth for everything it imported.
 
 ---

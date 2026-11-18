@@ -9,7 +9,9 @@ use App\Domain\Academics\Models\Level;
 use App\Domain\Examination\Models\Exam;
 use App\Domain\People\Models\Role;
 use App\Domain\People\Models\Student;
+use App\Domain\Resources\Models\TeachingMaterial;
 use App\Domain\Tenancy\Models\School;
+use Database\Seeders\LevelSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -49,6 +51,21 @@ class TenancyIsolationTest extends TestCase
         $this->assertNull(Exam::query()->find($theirs->id));
     }
 
+    public function test_a_school_never_sees_another_schools_teaching_materials(): void
+    {
+        $this->seed(LevelSeeder::class);
+        $a = School::factory()->create();
+        $b = School::factory()->create();
+
+        TeachingMaterial::factory()->create(['school_id' => $a->id]);
+        $theirs = TeachingMaterial::factory()->count(2)->create(['school_id' => $b->id])->first();
+
+        $this->actingForSchool($a);
+        $this->assertSame(1, TeachingMaterial::query()->count());
+        $this->assertNull(TeachingMaterial::query()->find($theirs->id));
+        $this->assertNull(TeachingMaterial::query()->withTrashed()->find($theirs->id));
+    }
+
     public function test_school_id_is_stamped_automatically_on_create(): void
     {
         $school = School::factory()->create();
@@ -56,7 +73,7 @@ class TenancyIsolationTest extends TestCase
 
         // No school_id passed: BelongsToSchool takes it from the resolved tenant.
         $student = Student::create([
-            'admission_no' => 'ADM-001',
+            'assessment_no' => 'ADM-001',
             'first_name' => 'Ada',
             'last_name' => 'Lovelace',
             'status' => 'active',
@@ -76,7 +93,7 @@ class TenancyIsolationTest extends TestCase
 
         $student = Student::create([
             'school_id' => $b->id,
-            'admission_no' => 'ADM-002',
+            'assessment_no' => 'ADM-002',
             'first_name' => 'Grace',
             'last_name' => 'Hopper',
             'status' => 'active',
@@ -110,6 +127,6 @@ class TenancyIsolationTest extends TestCase
 
         $this->assertSame(3, Level::query()->count());
         $this->assertSame(9, Grade::query()->count());
-        $this->assertSame(4, Role::query()->count());
+        $this->assertSame(count(Role::BUILT_IN), Role::query()->count());
     }
 }

@@ -15,6 +15,7 @@ use App\Domain\People\Models\User;
 use App\Domain\Reporting\Models\ReportCardSnapshot;
 use App\Domain\Reporting\Services\ReportCardService;
 use App\Domain\Tenancy\Models\School;
+use App\Domain\Tenancy\Models\SchoolSetting;
 use Database\Seeders\DemoSchoolSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
@@ -129,6 +130,39 @@ class ReportCardSnapshotTest extends TestCase
         Log::shouldHaveReceived('critical')->withArgs(fn ($message) => str_contains($message, 'checksum mismatch'))->atLeast()->once();
     }
 
+    public function test_a_card_frozen_before_the_assessment_number_rename_still_reads(): void
+    {
+        $this->publish();
+        $number = $this->card()['student']['assessment_no'];
+
+        // What a snapshot taken before 2026_09_21_000100 holds.
+        $this->inSchool(function () {
+            foreach (ReportCardSnapshot::query()->where('exam_id', $this->endTerm->id)->get() as $snapshot) {
+                $payload = $snapshot->payload;
+
+                foreach (['single', 'term'] as $layout) {
+                    $payload[$layout]['student']['admission_no'] = $payload[$layout]['student']['assessment_no'];
+                    unset($payload[$layout]['student']['assessment_no']);
+                }
+
+                $snapshot->update(['payload' => $payload, 'checksum' => ReportCardSnapshot::checksumFor($payload)]);
+            }
+        });
+
+        foreach (['single', 'term'] as $layout) {
+            $card = $this->card($layout);
+
+            $this->assertTrue($card['is_snapshot']);
+            $this->assertTrue($card['snapshot_intact'], 'Reading an old card must not alter what was issued.');
+            $this->assertSame($number, $card['student']['assessment_no']);
+            $this->assertArrayNotHasKey('admission_no', $card['student']);
+        }
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->get("/api/exams/{$this->endTerm->id}/report-cards/{$this->enrolmentId()}/pdf")
+            ->assertOk();
+    }
+
     public function test_a_published_exam_without_snapshots_falls_back_to_live_cards(): void
     {
         // Exams published before snapshots existed, or imported from legacy.
@@ -192,5 +226,128 @@ class ReportCardSnapshotTest extends TestCase
         $sorted = $names;
         sort($sorted);
         $this->assertSame($sorted, $names);
+    }
+
+    // -------------------------------------------------------------- template
+
+    private function chooseTemplate(string $template): void
+    {
+        SchoolSetting::query()->updateOrCreate(
+            ['school_id' => $this->school->id, 'key' => 'report_card.template'],
+            ['value' => $template],
+        );
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function snapshotRows(): array
+    {
+        return $this->inSchool(fn () => ReportCardSnapshot::query()->where('exam_id', $this->endTerm->id)->orderBy('id')->get(['id', 'checksum', 'generated_at'])->toArray());
+    }
+
+    private function resnapshot(): void
+    {
+        $this->inSchool(fn () => app(ReportCardService::class)->snapshot($this->endTerm->fresh(), $this->admin));
+    }
+
+    public function test_publishing_freezes_the_template_in_use(): void
+    {
+        $this->chooseTemplate('modern');
+        $this->publish();
+
+        foreach ($this->inSchool(fn () => ReportCardSnapshot::query()->where('exam_id', $this->endTerm->id)->get()) as $snapshot) {
+            $this->assertSame('modern', $snapshot->payload['single']['template']);
+            $this->assertSame('modern', $snapshot->payload['term']['template']);
+        }
+
+        $this->assertSame('modern', $this->card()['template']);
+    }
+
+    public function test_an_issued_card_keeps_its_template_when_the_school_changes_it(): void
+    {
+        $this->chooseTemplate('modern');
+        $this->publish();
+        $issued = $this->snapshotRows();
+
+        $this->chooseTemplate('formal');
+
+        foreach (['single', 'term'] as $layout) {
+            $card = $this->card($layout);
+            $this->assertTrue($card['is_snapshot']);
+            $this->assertSame('modern', $card['template']);
+        }
+
+        // Nor does freezing again restyle it — or even touch the row.
+        $this->travel(1)->hours();
+        $this->resnapshot();
+
+        $this->assertSame($issued, $this->snapshotRows());
+        $this->assertSame('modern', $this->card()['template']);
+    }
+
+    public function test_a_card_frozen_before_templates_existed_is_classic_and_untouched(): void
+    {
+        $this->publish();
+
+        // What a snapshot taken before templates existed holds: no template key.
+        $this->inSchool(function () {
+            foreach (ReportCardSnapshot::query()->where('exam_id', $this->endTerm->id)->get() as $snapshot) {
+                $payload = $snapshot->payload;
+                unset($payload['single']['template'], $payload['term']['template']);
+                $snapshot->update(['payload' => $payload, 'checksum' => ReportCardSnapshot::checksumFor($payload)]);
+            }
+        });
+        $issued = $this->snapshotRows();
+
+        // The school has since moved to another design.
+        $this->chooseTemplate('formal');
+
+        foreach (['single', 'term'] as $layout) {
+            $card = $this->card($layout);
+
+            $this->assertTrue($card['is_snapshot']);
+            $this->assertTrue($card['snapshot_intact'], 'Reading an old card must not alter what was issued.');
+            $this->assertSame('classic', $card['template']);
+        }
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->get("/api/exams/{$this->endTerm->id}/report-cards/{$this->enrolmentId()}/pdf")
+            ->assertOk();
+
+        // The legacy importer freezes every published exam again on each run
+        // (FinaliseStep). That must change nothing: not the checksum, not the
+        // date, and no template key written into a card that was issued without.
+        $this->travel(1)->hours();
+        $this->resnapshot();
+
+        $this->assertSame($issued, $this->snapshotRows());
+        $this->inSchool(function () {
+            foreach (ReportCardSnapshot::query()->where('exam_id', $this->endTerm->id)->get() as $snapshot) {
+                $this->assertArrayNotHasKey('template', $snapshot->payload['single']);
+                $this->assertArrayNotHasKey('template', $snapshot->payload['term']);
+                $this->assertTrue($snapshot->isIntact());
+            }
+        });
+    }
+
+    public function test_a_card_refrozen_because_its_content_changed_keeps_its_template(): void
+    {
+        $this->chooseTemplate('modern');
+        $this->publish();
+        $this->chooseTemplate('formal');
+
+        $studentId = $this->inSchool(function () {
+            $snapshot = ReportCardSnapshot::query()->where('exam_id', $this->endTerm->id)->orderBy('id')->firstOrFail();
+            ExamStudentResult::query()->where('exam_id', $this->endTerm->id)->where('student_id', $snapshot->student_id)->update(['total_marks' => 1]);
+
+            return $snapshot->student_id;
+        });
+
+        $this->resnapshot();
+
+        $snapshot = $this->inSchool(fn () => ReportCardSnapshot::query()->where('exam_id', $this->endTerm->id)->where('student_id', $studentId)->firstOrFail());
+        $this->assertEquals(1, $snapshot->payload['single']['totals'][0]['total_marks']);
+        $this->assertSame('modern', $snapshot->payload['single']['template']);
+        $this->assertSame('modern', $snapshot->payload['term']['template']);
+        $this->assertTrue($snapshot->isIntact());
     }
 }

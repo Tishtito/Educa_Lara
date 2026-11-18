@@ -74,7 +74,7 @@ return new class extends Migration
             $table->index(['school_id', 'created_at']);
         });
 
-        $trialDays = (int) config('educa.billing.trial_days', 30);
+        $trialDays = (int) config('elimupass.billing.trial_days', 30);
         $now = now();
 
         // Existing schools start on the trial. Plain inserts: this runs before
@@ -82,7 +82,7 @@ return new class extends Migration
         foreach (DB::table('schools')->get(['id', 'timezone']) as $school) {
             DB::table('school_subscriptions')->insert([
                 'school_id' => $school->id,
-                'cycle_months' => (int) config('educa.billing.default_cycle_months', 4),
+                'cycle_months' => (int) config('elimupass.billing.default_cycle_months', 4),
                 'price_kes' => null,
                 'paid_until' => Carbon::now($school->timezone ?: 'Africa/Nairobi')->addDays(max(1, $trialDays) - 1)->toDateString(),
                 'is_trial' => true,

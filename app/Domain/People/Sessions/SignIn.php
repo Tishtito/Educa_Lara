@@ -60,6 +60,6 @@ class SignIn
     {
         $lastSeen = $token->last_used_at ?? $token->created_at;
 
-        return $lastSeen !== null && $lastSeen->gt(now()->subDays(config('educa.sessions.idle_days')));
+        return $lastSeen !== null && $lastSeen->gt(now()->subDays(config('elimupass.sessions.idle_days')));
     }
 }

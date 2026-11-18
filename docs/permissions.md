@@ -1,6 +1,6 @@
 # Permissions
 
-Every action in Educa is guarded by a **permission**, never by a role's name.
+Every action in Elimu Pass is guarded by a **permission**, never by a role's name.
 Roles only collect permissions. What a role may do is **per school**, and each
 school can also make roles of its own (Deputy Head, Bursar, Head of Department).
 
@@ -41,8 +41,8 @@ request ──▶ auth:sanctum ──▶ tenant ──▶ password.changed ─�
 | Role | What it may do | Editable |
 |---|---|---|
 | `super_admin` | Everything, in every school, plus the platform permissions | No |
-| `school_admin` | Every school permission except the staff-portal duties (`access_staff_portal` and the three `*_class_pupils`), so admins use the portal only when they are also staff | No — so a school cannot lock itself out |
-| `class_teacher`, `examiner` | Code defaults (`App\Domain\Access\DefaultRoles`) until the school edits them; from then on, the school's stored grants | Yes, per school |
+| `school_admin` | Every school permission except the staff-portal duties (`access_staff_portal`, the three `*_class_pupils` and `view_own_timetable`), so admins use the portal only when they are also staff | No — so a school cannot lock itself out |
+| `class_teacher`, `examiner`, `teacher` | Code defaults (`App\Domain\Access\DefaultRoles`) until the school edits them; from then on, the school's stored grants. `teacher` (a subject teacher, the default for staff imported from CSV) starts with only `access_staff_portal` and `view_own_timetable` | Yes, per school |
 | A school's own role | Its stored grants | Yes |
 
 `school_role_overrides` records that a school has taken over a built-in role.

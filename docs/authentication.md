@@ -1,6 +1,6 @@
 # Authentication
 
-How people sign in to Educa Admin and Educa Staff, how long sessions last, and
+How people sign in to Elimu Pass Admin and Elimu Pass Portal, how long sessions last, and
 how to set up Continue with Google. Permissions (what someone may do once signed
 in) are in `docs/permissions.md`, and emailed links in `docs/email.md`.
 
@@ -37,8 +37,8 @@ app ──POST /auth/google {id_token}──▶ API
         SignIn                   active? school not suspended? → session token
 ```
 
-- **No account is ever created.** A Google account whose email is not on an Educa
-  account gets 422: "No Educa account uses …". Accounts still come only from
+- **No account is ever created.** A Google account whose email is not on an Elimu Pass
+  account gets 422: "No Elimu Pass account uses …". Accounts still come only from
   administrators and invitations.
 - **Connecting:**
   - The first Google sign-in finds the account by email and stores Google's
@@ -94,7 +94,7 @@ fetched again when a token names a key not seen yet.
 6. **Apps** (`.env.local`, then rebuild): `VITE_GOOGLE_WEB_CLIENT_ID`, plus
    `VITE_GOOGLE_IOS_CLIENT_ID` for iOS builds. Then run `npx cap sync`.
 
-The Google account must have the same email address as the Educa account.
+The Google account must have the same email address as the Elimu Pass account.
 Workspace addresses such as `@school.ac.ke` work if the school's domain is on
 Google Workspace.
 

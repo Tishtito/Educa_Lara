@@ -6,7 +6,7 @@ namespace App\Domain\Messaging;
 
 use App\Domain\Messaging\Models\EmailLog;
 use App\Domain\People\Models\User;
-use App\Notifications\EducaMail;
+use App\Notifications\ElimuPassMail;
 use Illuminate\Contracts\Encryption\Encrypter;
 use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Notifications\Events\NotificationSent;
@@ -25,7 +25,7 @@ class EmailLogger
 
     public function sent(NotificationSent $event): void
     {
-        if ($event->channel !== 'mail' || ! $event->notification instanceof EducaMail) {
+        if ($event->channel !== 'mail' || ! $event->notification instanceof ElimuPassMail) {
             return;
         }
 
@@ -36,7 +36,7 @@ class EmailLogger
     {
         $command = $this->command($event);
 
-        if (! $command instanceof SendQueuedNotifications || ! $command->notification instanceof EducaMail) {
+        if (! $command instanceof SendQueuedNotifications || ! $command->notification instanceof ElimuPassMail) {
             return;
         }
 
@@ -45,7 +45,7 @@ class EmailLogger
         }
     }
 
-    private function write(object $notifiable, EducaMail $notification, string $status, ?string $error = null): void
+    private function write(object $notifiable, ElimuPassMail $notification, string $status, ?string $error = null): void
     {
         try {
             $recipient = $notifiable instanceof AnonymousNotifiable

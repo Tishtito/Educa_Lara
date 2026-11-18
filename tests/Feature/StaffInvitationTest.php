@@ -91,12 +91,12 @@ class StaffInvitationTest extends TestCase
         Notification::assertSentTo($user, StaffInvitation::class, function (StaffInvitation $n) use ($user) {
             $mail = $n->toMail($user);
 
-            return str_starts_with($n->url, config('educa.apps.portal_url').'/invite/')
+            return str_starts_with($n->url, config('elimupass.apps.portal_url').'/invite/')
                 && $n->inviterName === 'Admin One'
                 && $n->queue === 'notifications'
                 && $n->afterCommit === true
                 && $n instanceof ShouldBeEncrypted
-                && $mail->from === [config('mail.from.address'), 'Hilltop Primary via Educa']
+                && $mail->from === [config('mail.from.address'), 'Hilltop Primary via Elimu Pass']
                 && str_contains(implode(' ', $mail->introLines), 'Your username is **nwambui**');
         });
 
@@ -111,7 +111,7 @@ class StaffInvitationTest extends TestCase
         [, $token] = $this->invite(['username' => 'deputy', 'roles' => ['school_admin', 'class_teacher']]);
 
         Notification::assertSentTo(User::query()->where('username', 'deputy')->first(), StaffInvitation::class,
-            fn (StaffInvitation $n) => $n->url === config('educa.apps.admin_url')."/invite/{$token}");
+            fn (StaffInvitation $n) => $n->url === config('elimupass.apps.admin_url')."/invite/{$token}");
     }
 
     public function test_an_invitation_needs_an_email_address(): void
@@ -188,7 +188,7 @@ class StaffInvitationTest extends TestCase
         $this->guest()->getJson('/api/auth/invitations/'.str_repeat('a', 64))->assertStatus(410)->assertJsonPath('reason', 'invalid');
         $this->getJson('/api/auth/invitations/short')->assertStatus(410)->assertJsonPath('reason', 'invalid');
 
-        $this->travel(config('educa.accounts.invitation_ttl_hours') + 1)->hours();
+        $this->travel(config('elimupass.accounts.invitation_ttl_hours') + 1)->hours();
 
         $this->getJson("/api/auth/invitations/{$token}")->assertStatus(410)->assertJsonPath('reason', 'expired');
         $this->postJson("/api/auth/invitations/{$token}/accept", ['password' => 'correct horse', 'password_confirmation' => 'correct horse'])
@@ -317,7 +317,7 @@ class StaffInvitationTest extends TestCase
         $grace = User::query()->where('username', 'grace')->firstOrFail();
         $this->assertFalse($grace->must_change_password);
 
-        Notification::assertSentTo($grace, StaffInvitation::class, fn (StaffInvitation $n) => str_starts_with($n->url, config('educa.apps.admin_url').'/invite/')
+        Notification::assertSentTo($grace, StaffInvitation::class, fn (StaffInvitation $n) => str_starts_with($n->url, config('elimupass.apps.admin_url').'/invite/')
             && $n->inviterName === 'Platform Person'
             && $n->roles === ['School Administrator']);
 

@@ -1,12 +1,12 @@
 {{--
-    Layout for people-facing email (App\Notifications\EducaMail). Laravel's
+    Layout for people-facing email (App\Notifications\ElimuPassMail). Laravel's
     notification template, with the school's name in the header and footer.
     No remote images: many mail clients block them, and school logos are served
     behind authentication.
 --}}
 <x-mail::layout>
 <x-slot:header>
-<x-mail::header :url="config('educa.apps.portal_url')">
+<x-mail::header :url="config('elimupass.apps.portal_url')">
 {{ $schoolName ?? config('app.name') }}
 </x-mail::header>
 </x-slot:header>
@@ -48,9 +48,9 @@ If the “{{ $actionText }}” button does not work, copy this link into your br
 <x-slot:footer>
 <x-mail::footer>
 @if ($schoolName)
-Sent by Educa on behalf of {{ $schoolName }}.
+Sent by Elimu Pass on behalf of {{ $schoolName }}.
 @else
-Sent by Educa.
+Sent by Elimu Pass.
 @endif
 </x-mail::footer>
 </x-slot:footer>

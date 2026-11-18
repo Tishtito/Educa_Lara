@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace App\Notifications\Account;
 
 use App\Domain\Tenancy\Models\School;
-use App\Notifications\EducaMail;
+use App\Notifications\ElimuPassMail;
 use DateTimeInterface;
 use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Notifications\Messages\MailMessage;
 
 /** A "forgot password" link. */
-class PasswordResetLink extends EducaMail implements ShouldBeEncrypted
+class PasswordResetLink extends ElimuPassMail implements ShouldBeEncrypted
 {
     public function __construct(
         public readonly string $url,
@@ -28,10 +28,10 @@ class PasswordResetLink extends EducaMail implements ShouldBeEncrypted
     protected function message(object $notifiable, ?School $school): MailMessage
     {
         $minutes = max(1, (int) round((now()->diffInSeconds($this->expiresAt, false)) / 60));
-        $minutes = min($minutes, (int) config('educa.accounts.reset_ttl_minutes'));
+        $minutes = min($minutes, (int) config('elimupass.accounts.reset_ttl_minutes'));
 
         return $this->mailMessage($school)
-            ->subject('Reset your Educa password')
+            ->subject('Reset your Elimu Pass password')
             ->greeting("Hello {$notifiable->name},")
             ->line("Someone asked to reset the password for **{$notifiable->username}**".($school ? " at {$school->name}" : '').'.')
             ->action('Choose a new password', $this->url)

@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  push:
+    branches: [dev, main]
+  pull_request:
+    branches: [dev, main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  # Supersede in-flight PR runs, but never kill a push to dev: that run may be
+  # part-way through a deploy.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+
+    services:
+      # MariaDB 10.11 to match production. phpunit.xml pins DB_CONNECTION=mysql
+      # on purpose: the migrations use enum() columns and hand-written short
+      # index names that exist only because of MySQL's 64-char identifier limit,
+      # and SQLite accepts all of it silently.
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: educa_lara_test
+          # Matches .env.example and phpunit.xml's LEGACY_DB_* values, which the
+          # legacy-import tests use to create synthetic tables in the test schema.
+          MARIADB_USER: educa
+          MARIADB_PASSWORD: educa
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, xml, dom, curl, zip, bcmath, gd, intl, pdo_mysql, fileinfo, tokenizer
+          coverage: none
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/composer/files
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Prepare environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Code style
+        run: ./vendor/bin/pint --test
+
+      - name: Tests
+        run: php artisan test
+
+  deploy:
+    name: Deploy to production
+    needs: test
+    if: github.ref == 'refs/heads/dev' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    concurrency:
+      # Serialise deploys. No cancel-in-progress: a deploy must never be killed
+      # between `migrate` and `config:cache`.
+      group: deploy-production
+
+    steps:
+      - name: Deploy over SSH
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "${{ secrets.DEPLOY_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+          # No command is passed: the key is pinned to a forced command on the
+          # server, so this runs educa-deploy and streams its output back here.
+          ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes \
+              "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}"

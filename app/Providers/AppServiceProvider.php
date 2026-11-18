@@ -55,7 +55,7 @@ class AppServiceProvider extends ServiceProvider
 
         // Sessions record their device (PersonalAccessToken). Sanctum ends a
         // session at its absolute lifetime (sanctum.expiration); this ends one
-        // left unused for educa.sessions.idle_days. It runs before Sanctum
+        // left unused for elimupass.sessions.idle_days. It runs before Sanctum
         // stamps last_used_at, so it sees when the session was last used.
         Sanctum::usePersonalAccessTokenModel(PersonalAccessToken::class);
         Sanctum::authenticateAccessTokensUsing(
@@ -77,14 +77,14 @@ class AppServiceProvider extends ServiceProvider
             $this->app->make(EmailLogger::class)->jobFailed($event);
         });
 
-        // Delivery log for people-facing email (App\Notifications\EducaMail).
+        // Delivery log for people-facing email (App\Notifications\ElimuPassMail).
         Event::listen(NotificationSent::class, fn (NotificationSent $event) => $this->app->make(EmailLogger::class)->sent($event));
 
         // GET /up: an uptime monitor's view of whether the queue is serving the
         // app. Throwing here makes Laravel answer 500; with debug off the body
         // says nothing, and the reason is reported to the log.
         Event::listen(DiagnosingHealth::class, function (): void {
-            if (! config('educa.queue.check_on_up')) {
+            if (! config('elimupass.queue.check_on_up')) {
                 return;
             }
 

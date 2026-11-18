@@ -18,7 +18,7 @@ use Throwable;
  * the Android and iOS apps alike. Nothing from the token is trusted until:
  *
  *   - its RS256 signature checks out against Google's published keys;
- *   - it was issued by Google, to one of Educa's OAuth clients (aud);
+ *   - it was issued by Google, to one of Elimu Pass's OAuth clients (aud);
  *   - it has not expired;
  *   - Google says the email address is verified.
  *

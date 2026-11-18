@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace App\Notifications\Billing;
 
 use App\Domain\Tenancy\Models\School;
-use App\Notifications\EducaMail;
+use App\Notifications\ElimuPassMail;
 use DateTimeInterface;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Carbon;
 
-/** A receipt for a payment towards the school's Educa subscription. */
-class SubscriptionPaymentReceipt extends EducaMail
+/** A receipt for a payment towards the school's Elimu Pass subscription. */
+class SubscriptionPaymentReceipt extends ElimuPassMail
 {
     public function __construct(
         public readonly int $amountKes,
@@ -34,13 +34,13 @@ class SubscriptionPaymentReceipt extends EducaMail
     {
         $how = match ($this->method) {
             'stk', 'paybill' => 'M-Pesa',
-            default => 'recorded by Educa',
+            default => 'recorded by Elimu Pass',
         };
 
         $message = $this->mailMessage($school)
-            ->subject('Payment received: KES '.number_format($this->amountKes).' for Educa')
+            ->subject('Payment received: KES '.number_format($this->amountKes).' for Elimu Pass')
             ->greeting("Hello {$notifiable->name},")
-            ->line('We received **KES '.number_format($this->amountKes)."** ({$how}) for ".($school?->name ?? 'your school')."'s Educa subscription. Thank you.")
+            ->line('We received **KES '.number_format($this->amountKes)."** ({$how}) for ".($school?->name ?? 'your school')."'s Elimu Pass subscription. Thank you.")
             ->line('**Receipt:** '.($this->receipt ?? '—'))
             ->line('**Paid on:** '.Carbon::instance($this->paidAt)->timezone($school?->timezone ?: 'Africa/Nairobi')->format('j M Y, g:i a'));
 

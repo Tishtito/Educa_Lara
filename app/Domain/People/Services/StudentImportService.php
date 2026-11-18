@@ -32,8 +32,8 @@ class StudentImportService
             ->keyBy(fn (SchoolClass $c) => $this->key($c->name));
 
         $existing = Student::query()->withTrashed()
-            ->whereIn('admission_no', collect($rows)->pluck('admission_no')->filter()->map(fn ($v) => trim((string) $v)))
-            ->pluck('admission_no')
+            ->whereIn('assessment_no', collect($rows)->pluck('assessment_no')->filter()->map(fn ($v) => trim((string) $v)))
+            ->pluck('assessment_no')
             ->map(fn ($v) => Str::lower($v))
             ->flip();
 
@@ -50,17 +50,17 @@ class StudentImportService
             $row = array_map(fn ($v) => is_string($v) ? trim(preg_replace('/\s+/', ' ', $v) ?? '') : $v, $row);
             [$first, $middle, $last] = $this->names($row);
 
-            $admission = (string) ($row['admission_no'] ?? '');
-            if ($admission === '') {
-                $fail('admission_no', 'Admission number is missing.');
-            } elseif (mb_strlen($admission) > 40) {
-                $fail('admission_no', 'Admission number is longer than 40 characters.');
-            } elseif (isset($existing[Str::lower($admission)])) {
-                $fail('admission_no', "A pupil with admission number {$admission} already exists.");
-            } elseif (isset($seen[Str::lower($admission)])) {
-                $fail('admission_no', "Admission number {$admission} appears twice in the file (row {$seen[Str::lower($admission)]}).");
+            $assessment = (string) ($row['assessment_no'] ?? '');
+            if ($assessment === '') {
+                $fail('assessment_no', 'Assessment number is missing. The column must be headed “Assessment No”.');
+            } elseif (mb_strlen($assessment) > 40) {
+                $fail('assessment_no', 'Assessment number is longer than 40 characters.');
+            } elseif (isset($existing[Str::lower($assessment)])) {
+                $fail('assessment_no', "A pupil with assessment number {$assessment} already exists.");
+            } elseif (isset($seen[Str::lower($assessment)])) {
+                $fail('assessment_no', "Assessment number {$assessment} appears twice in the file (row {$seen[Str::lower($assessment)]}).");
             } else {
-                $seen[Str::lower($admission)] = $line;
+                $seen[Str::lower($assessment)] = $line;
             }
 
             if ($first === null || $last === null) {
@@ -82,8 +82,19 @@ class StudentImportService
                 $fail('date_of_birth', 'Date of birth should look like 2016-03-21 or 21/03/2016.');
             }
 
+            $status = $this->status($row['status'] ?? null);
+            if ($status === false) {
+                $fail('status', 'Status should be active, transferred, graduated, inactive or blank.');
+            }
+
+            // A pupil can be enrolled from a future date (next term's intake), unlike a birth date.
+            $joined = $this->date($row['started_on'] ?? null, allowFuture: true);
+            if ($joined === false) {
+                $fail('started_on', 'The date joined should look like 2026-01-06 or 06/01/2026.');
+            }
+
             $clean[] = [
-                'admission_no' => $admission,
+                'assessment_no' => $assessment,
                 'first_name' => $first,
                 'middle_name' => $middle,
                 'last_name' => $last,
@@ -92,6 +103,8 @@ class StudentImportService
                 'guardian_name' => ($row['guardian_name'] ?? null) ?: null,
                 'guardian_phone' => ($row['guardian_phone'] ?? null) ?: null,
                 'upi' => ($row['upi'] ?? null) ?: null,
+                'status' => $status ?: 'active',
+                'started_on' => $joined ?: null,
                 'class_id' => $class?->id,
                 'class_name' => $class?->name,
             ];
@@ -113,14 +126,15 @@ class StudentImportService
 
         DB::transaction(function () use ($clean, $schoolId, $academicYearId): void {
             foreach ($clean as $row) {
-                $student = Student::create(collect($row)->except(['class_id', 'class_name'])->all() + ['school_id' => $schoolId, 'status' => 'active']);
+                $student = Student::create(collect($row)->except(['class_id', 'class_name', 'started_on'])->all() + ['school_id' => $schoolId]);
                 StudentEnrolment::create([
                     'school_id' => $schoolId,
                     'student_id' => $student->id,
                     'academic_year_id' => $academicYearId,
                     'class_id' => $row['class_id'],
-                    'status' => 'active',
-                    'started_on' => now()->toDateString(),
+                    // A pupil imported as anything but active has already left that class.
+                    'status' => $row['status'] === 'active' ? 'active' : 'left',
+                    'started_on' => $row['started_on'] ?? now()->toDateString(),
                 ]);
             }
         });
@@ -162,7 +176,22 @@ class StudentImportService
         };
     }
 
-    private function date(mixed $value): string|false|null
+    /** The pupil's status as the school wrote it. False when it is a word we do not know. */
+    private function status(mixed $value): string|false|null
+    {
+        $v = Str::lower(trim((string) $value));
+
+        return match (true) {
+            $v === '' => null,
+            in_array($v, ['active', 'current', 'continuing'], true) => 'active',
+            in_array($v, ['transferred', 'transfer', 'left'], true) => 'transferred',
+            in_array($v, ['graduated', 'completed'], true) => 'graduated',
+            in_array($v, ['inactive', 'dormant'], true) => 'inactive',
+            default => false,
+        };
+    }
+
+    private function date(mixed $value, bool $allowFuture = false): string|false|null
     {
         $v = trim((string) $value);
         if ($v === '') {
@@ -177,7 +206,7 @@ class StudentImportService
                 continue;
             }
             // Round-tripping rejects overflow such as 31/02/2016 becoming 2 March.
-            if ($date !== null && $date->format($format) === $v && $date->isPast()) {
+            if ($date !== null && $date->format($format) === $v && ($allowFuture || $date->isPast())) {
                 return $date->toDateString();
             }
         }

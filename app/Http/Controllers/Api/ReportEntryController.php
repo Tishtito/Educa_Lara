@@ -53,7 +53,7 @@ class ReportEntryController extends Controller
             ->map(fn (StudentEnrolment $e) => [
                 'enrolment_id' => $e->id,
                 'student_id' => $e->student_id,
-                'admission_no' => $e->student->admission_no,
+                'assessment_no' => $e->student->assessment_no,
                 'name' => $e->student->full_name,
                 'class_teacher_remarks' => $entries->get($e->id)?->class_teacher_remarks,
                 'fee_balance' => $entries->get($e->id)?->fee_balance === null ? null : (float) $entries->get($e->id)->fee_balance,

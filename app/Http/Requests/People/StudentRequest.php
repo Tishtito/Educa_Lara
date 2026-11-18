@@ -17,7 +17,7 @@ class StudentRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        foreach (['admission_no', 'first_name', 'middle_name', 'last_name', 'upi', 'guardian_name', 'guardian_phone'] as $field) {
+        foreach (['assessment_no', 'first_name', 'middle_name', 'last_name', 'upi', 'guardian_name', 'guardian_phone'] as $field) {
             if (is_string($this->input($field))) {
                 $this->merge([$field => trim(preg_replace('/\s+/', ' ', $this->input($field)) ?? '') ?: null]);
             }
@@ -33,7 +33,7 @@ class StudentRequest extends FormRequest
 
         return [
             // Including soft-deleted pupils: the unique index does not know about deleted_at.
-            'admission_no' => [$required, 'string', 'max:40', Rule::unique('students', 'admission_no')->where('school_id', $schoolId)->ignore($student?->id)],
+            'assessment_no' => [$required, 'string', 'max:40', Rule::unique('students', 'assessment_no')->where('school_id', $schoolId)->ignore($student?->id)],
             'upi' => ['sometimes', 'nullable', 'string', 'max:40'],
             'first_name' => [$required, 'string', 'max:80'],
             'middle_name' => ['sometimes', 'nullable', 'string', 'max:80'],
@@ -50,6 +50,6 @@ class StudentRequest extends FormRequest
 
     public function messages(): array
     {
-        return ['admission_no.unique' => 'Another pupil already has this admission number.'];
+        return ['assessment_no.unique' => 'Another pupil already has this assessment number.'];
     }
 }

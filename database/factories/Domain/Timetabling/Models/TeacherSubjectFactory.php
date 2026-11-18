@@ -1,0 +1,28 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Database\Factories\Domain\Timetabling\Models;
+
+use App\Domain\Academics\Models\AcademicYear;
+use App\Domain\Curriculum\Models\LevelSubject;
+use App\Domain\People\Models\User;
+use App\Domain\Tenancy\Models\School;
+use App\Domain\Timetabling\Models\TeacherSubject;
+use Illuminate\Database\Eloquent\Factories\Factory;
+
+/** @extends Factory<TeacherSubject> */
+class TeacherSubjectFactory extends Factory
+{
+    protected $model = TeacherSubject::class;
+
+    public function definition(): array
+    {
+        return [
+            'school_id' => School::factory(),
+            'user_id' => User::factory(),
+            'level_subject_id' => LevelSubject::factory(),
+            'academic_year_id' => AcademicYear::factory(),
+        ];
+    }
+}

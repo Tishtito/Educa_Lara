@@ -37,8 +37,15 @@ class Role extends Model
 
     public const EXAMINER = 'examiner';
 
+    /**
+     * A subject teacher who is neither class teacher nor examiner: someone the
+     * timetable puts in front of classes, who signs in to see it. Legacy had no
+     * such account at all, because it only had marking and class work.
+     */
+    public const TEACHER = 'teacher';
+
     /** Built-in slugs a school's own role may not reuse. */
-    public const BUILT_IN = [self::SUPER_ADMIN, self::SCHOOL_ADMIN, self::CLASS_TEACHER, self::EXAMINER];
+    public const BUILT_IN = [self::SUPER_ADMIN, self::SCHOOL_ADMIN, self::CLASS_TEACHER, self::EXAMINER, self::TEACHER];
 
     protected $guarded = ['id'];
 

@@ -19,6 +19,7 @@ use App\Domain\Grading\Models\GradeBand;
 use App\Domain\People\Models\ClassTeacherAssignment;
 use App\Domain\People\Models\StudentEnrolment;
 use App\Domain\Reporting\Enums\ReportLayout;
+use App\Domain\Reporting\Enums\ReportTemplate;
 use App\Domain\Reporting\Exceptions\ReportCardUnavailable;
 use App\Domain\Reporting\Models\ReportCardEntry;
 use App\Domain\Tenancy\Models\School;
@@ -171,7 +172,7 @@ class ReportCardBuilder
                 'student' => [
                     'student_id' => $enrolment->student_id,
                     'enrolment_id' => $enrolment->id,
-                    'admission_no' => $enrolment->student->admission_no,
+                    'assessment_no' => $enrolment->student->assessment_no,
                     'name' => $enrolment->student->full_name,
                 ],
                 'rows' => $this->rows($subjects, $papersInExam, $columns, $enrolmentId, $scoreIndex, $bands, $layout),
@@ -319,6 +320,9 @@ class ReportCardBuilder
 
         return [
             'layout' => $layout->value,
+            // The design to print in. On the card, not looked up at render time,
+            // so publication freezes it with everything else.
+            'template' => ReportTemplate::fromSetting($school->setting('report_card.template'))->value,
             'school' => [
                 'name' => $school->name,
                 'motto' => $school->motto,

@@ -115,14 +115,14 @@ return [
     | Markdown Mail Theme
     |--------------------------------------------------------------------------
     |
-    | People-facing mail (App\Notifications\EducaMail) renders through
+    | People-facing mail (App\Notifications\ElimuPassMail) renders through
     | resources/views/mail/notification.blade.php with this stylesheet
-    | (resources/views/mail/educa-theme.blade.php).
+    | (resources/views/mail/elimupass-theme.blade.php).
     |
     */
 
     'markdown' => [
-        'theme' => env('MAIL_MARKDOWN_THEME', 'educa-theme'),
+        'theme' => env('MAIL_MARKDOWN_THEME', 'elimupass-theme'),
         'paths' => [],
     ],
 

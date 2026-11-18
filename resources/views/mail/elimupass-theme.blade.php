@@ -1,4 +1,4 @@
-/* Educa mail theme: Laravel's default with the Educa navy for buttons and links. Rendered as a view (config mail.markdown.theme). */
+/* Elimu Pass mail theme: Laravel's default with the Elimu Pass navy for buttons and links. Rendered as a view (config mail.markdown.theme). */
 /* Base */
 
 body,

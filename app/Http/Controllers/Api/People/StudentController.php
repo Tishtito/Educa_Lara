@@ -37,7 +37,7 @@ class StudentController extends Controller
             ->with(['enrolments' => fn ($q) => $q->where('academic_year_id', $yearId)->with('schoolClass')])
             ->when($search !== '', fn ($q) => $q->where(fn ($q) => $q
                 ->where('full_name', 'like', "%{$search}%")
-                ->orWhere('admission_no', 'like', "%{$search}%")))
+                ->orWhere('assessment_no', 'like', "%{$search}%")))
             ->when($request->string('status')->toString(), fn ($q, $status) => $q->where('status', $status))
             ->when($request->integer('class_id'), fn ($q, $classId) => $q->whereHas('enrolments', fn ($q) => $q
                 ->where('academic_year_id', $yearId)->where('class_id', $classId)))

@@ -37,7 +37,7 @@ class AccountLinks
     /** Sends an invitation to the account's email. The account must not have signed in yet. */
     public function sendInvitation(User $user, ?User $by): AccountToken
     {
-        [$link, $token] = $this->issue($user, AccountToken::INVITATION, $by, now()->addHours(config('educa.accounts.invitation_ttl_hours')));
+        [$link, $token] = $this->issue($user, AccountToken::INVITATION, $by, now()->addHours(config('elimupass.accounts.invitation_ttl_hours')));
 
         $user->notify(new StaffInvitation(
             url: $this->url($user, AccountToken::INVITATION, $token),
@@ -51,7 +51,7 @@ class AccountLinks
 
     public function sendPasswordReset(User $user): AccountToken
     {
-        [$link, $token] = $this->issue($user, AccountToken::PASSWORD_RESET, null, now()->addMinutes(config('educa.accounts.reset_ttl_minutes')));
+        [$link, $token] = $this->issue($user, AccountToken::PASSWORD_RESET, null, now()->addMinutes(config('elimupass.accounts.reset_ttl_minutes')));
 
         $user->notify(new PasswordResetLink(
             url: $this->url($user, AccountToken::PASSWORD_RESET, $token),
@@ -79,7 +79,7 @@ class AccountLinks
         return AccountToken::query()
             ->where('user_id', $user->id)
             ->where('purpose', $purpose)
-            ->where('created_at', '>', now()->subSeconds(config('educa.accounts.resend_cooldown_seconds')))
+            ->where('created_at', '>', now()->subSeconds(config('elimupass.accounts.resend_cooldown_seconds')))
             ->exists();
     }
 
@@ -138,7 +138,7 @@ class AccountLinks
 
         if ($linkedElsewhere) {
             throw ValidationException::withMessages([
-                'id_token' => ['This Google account is already connected to another Educa account.'],
+                'id_token' => ['This Google account is already connected to another Elimu Pass account.'],
             ]);
         }
 
@@ -199,12 +199,12 @@ class AccountLinks
         }
     }
 
-    /** Whoever may use Educa Admin sets up and recovers their account there; everyone else in the staff portal. */
+    /** Whoever may use Elimu Pass Admin sets up and recovers their account there; everyone else in the staff portal. */
     public function url(User $user, string $purpose, string $token): string
     {
         $admin = $user->school_id === null
             || in_array(PermissionRegistry::ACCESS_ADMIN_APP, app(Access::class)->permissionsFor($user, $user->school_id), true);
-        $base = config($admin ? 'educa.apps.admin_url' : 'educa.apps.portal_url');
+        $base = config($admin ? 'elimupass.apps.admin_url' : 'elimupass.apps.portal_url');
         $path = $purpose === AccountToken::INVITATION ? 'invite' : 'reset-password';
 
         return "{$base}/{$path}/{$token}";

@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api\People;
 use App\Domain\Academics\Models\AcademicYear;
 use App\Domain\Access\Access;
 use App\Domain\People\Models\User;
+use App\Domain\People\Services\StaffImportService;
 use App\Domain\People\Services\StaffService;
 use App\Domain\Tenancy\TenantManager;
 use App\Http\Controllers\Controller;
@@ -73,6 +74,30 @@ class StaffController extends Controller
             'success' => true,
             'data' => $password === null ? $body : $body + ['temporary_password' => $password],
         ], 201);
+    }
+
+    /**
+     * POST /staff/import {dry_run, send_invitation?, rows: [{name|first_name…, username?, email?, phone?, staff_no?, tsc_no?, role?}]}
+     * The client parses the spreadsheet; the server checks every row and creates
+     * the accounts only when all are valid. Temporary passwords come back once.
+     */
+    public function import(Request $request, StaffImportService $imports): JsonResponse
+    {
+        $data = $request->validate([
+            'dry_run' => ['required', 'boolean'],
+            'send_invitation' => ['sometimes', 'boolean'],
+            'rows' => ['present', 'array', 'max:'.StaffImportService::MAX_ROWS],
+            'rows.*' => ['array'],
+        ]);
+        $invite = (bool) ($data['send_invitation'] ?? false);
+
+        if ($invite && ! $request->user()->can('invite_staff')) {
+            return response()->json(['success' => false, 'message' => 'You cannot send staff invitations. Import without them to give temporary passwords instead.'], 403);
+        }
+
+        $result = $imports->import($this->schoolId(), $data['rows'], (bool) $data['dry_run'], $request->user(), $invite);
+
+        return response()->json(['success' => true, 'data' => $result], $result['committed'] ? 201 : 200);
     }
 
     public function update(StaffRequest $request, int $staff): JsonResponse

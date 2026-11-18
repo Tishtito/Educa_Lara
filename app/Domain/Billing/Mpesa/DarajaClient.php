@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Log;
 /**
  * Safaricom Daraja: Lipa na M-Pesa Online (STK push and its status query) and
  * C2B URL registration for the Paybill. Credentials are platform-wide
- * (config/services.php mpesa): every school pays the same Educa Paybill, and
+ * (config/services.php mpesa): every school pays the same Elimu Pass Paybill, and
  * the account number says which school.
  */
 class DarajaClient
@@ -173,7 +173,7 @@ class DarajaClient
     private function request(): PendingRequest
     {
         if (! $this->configured()) {
-            throw new MpesaException('M-Pesa payments are not set up yet. Contact Educa.');
+            throw new MpesaException('M-Pesa payments are not set up yet. Contact Elimu Pass.');
         }
 
         return Http::baseUrl($this->baseUrl())

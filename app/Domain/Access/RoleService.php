@@ -133,7 +133,7 @@ class RoleService
     public function resetToDefaults(Role $role, int $schoolId): void
     {
         if ($role->school_id !== null || DefaultRoles::isFixed($role->slug)) {
-            throw SetupConflict::inUse($role->name, 'only the built-in class teacher and examiner roles have defaults', 'Edit its permissions instead.');
+            throw SetupConflict::inUse($role->name, 'only the editable built-in roles (class teacher, examiner, teacher) have defaults', 'Edit its permissions instead.');
         }
 
         DB::transaction(function () use ($role, $schoolId): void {

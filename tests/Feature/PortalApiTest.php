@@ -138,13 +138,13 @@ class PortalApiTest extends TestCase
     {
         $this->actingAs($this->teacher, 'sanctum');
 
-        $this->postJson("/api/my/classes/{$this->blue->id}/students", ['admission_no' => 'NEW-1', 'first_name' => 'Nia', 'last_name' => 'Wambui'])
+        $this->postJson("/api/my/classes/{$this->blue->id}/students", ['assessment_no' => 'NEW-1', 'first_name' => 'Nia', 'last_name' => 'Wambui'])
             ->assertCreated()
             ->assertJsonPath('data.enrolments.0.class_name', 'Grade 5 Blue');
 
-        $this->postJson("/api/my/classes/{$this->red->id}/students", ['admission_no' => 'NEW-2', 'first_name' => 'No', 'last_name' => 'Entry'])
+        $this->postJson("/api/my/classes/{$this->red->id}/students", ['assessment_no' => 'NEW-2', 'first_name' => 'No', 'last_name' => 'Entry'])
             ->assertForbidden();
-        $this->assertDatabaseMissing('students', ['admission_no' => 'NEW-2']);
+        $this->assertDatabaseMissing('students', ['assessment_no' => 'NEW-2']);
     }
 
     public function test_a_teacher_moves_their_own_pupil_but_not_someone_elses(): void

@@ -52,7 +52,7 @@
             <td>
                 <div class="rp-label">REPORT FOR:</div>
                 <div class="rp-student">{{ $card['student']['name'] }}</div>
-                <div class="rp-meta-line">Adm No: {{ $card['student']['admission_no'] }}</div>
+                <div class="rp-meta-line">Assessment No: {{ $card['student']['assessment_no'] }}</div>
                 <div class="rp-meta-line">Grade: {{ $card['class']['name'] }}</div>
                 <div class="rp-meta-line">Tutor: {{ $card['class']['class_teacher'] ?? 'Not Assigned' }}</div>
             </td>

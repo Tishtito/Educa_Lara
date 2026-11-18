@@ -17,14 +17,14 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Continue with Google. It signs in an account that already exists: Educa
+ * Continue with Google. It signs in an account that already exists: Elimu Pass
  * accounts are still made only by administrators and invitations, so a Google
  * account nobody has added is turned away rather than given an empty account.
  *
  * The first time, the account is found by the email Google has verified, and
  * the Google account is connected to it (users.google_sub). After that it is
  * found by that connection, whatever the Google email becomes. Changing the
- * Educa account's email disconnects it (StaffService).
+ * Elimu Pass account's email disconnects it (StaffService).
  */
 class GoogleAuthController extends Controller
 {
@@ -47,13 +47,13 @@ class GoogleAuthController extends Controller
 
             if ($user === null) {
                 throw ValidationException::withMessages([
-                    'id_token' => ["No Educa account uses {$identity->email}. Ask your school administrator to add this email address to your account, or sign in with your username and password."],
+                    'id_token' => ["No Elimu Pass account uses {$identity->email}. Ask your school administrator to add this email address to your account, or sign in with your username and password."],
                 ]);
             }
 
             if ($user->google_sub !== null) {
                 throw ValidationException::withMessages([
-                    'id_token' => ['Your Educa account is connected to a different Google account. Continue with that one, or sign in with your password.'],
+                    'id_token' => ['Your Elimu Pass account is connected to a different Google account. Continue with that one, or sign in with your password.'],
                 ]);
             }
         }

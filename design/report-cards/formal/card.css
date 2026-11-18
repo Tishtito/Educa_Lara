@@ -1,0 +1,296 @@
+/*
+ * "Formal" report card — print stylesheet for dompdf.
+ *
+ * A compact, ruled, black-and-white form in Times: nothing in it depends on
+ * colour, so it photocopies cleanly. Same constraints as the classic card:
+ * table layout only (no flex, grid, float, CSS variables or calc), px sizing
+ * against A4 at 96 DPI, built-in fonts, no remote assets. Every selector sits
+ * under the rf- prefix because the stylesheets of several templates can be
+ * inlined into one document; the @page rule is identical in every template
+ * for the same reason.
+ *
+ * The body margin is zeroed by the document shell, not here.
+ */
+
+@page {
+    margin: 1.2cm;
+}
+
+.rf-page {
+    font-family: Times, serif;
+    font-size: 12px;
+    color: #000;
+    page-break-after: always;
+}
+
+/* The last report must not emit a trailing blank page. */
+.rf-page-last {
+    page-break-after: auto;
+}
+
+/* The whole card sits inside one ruled frame. */
+.rf-frame {
+    border: 3px double #000;
+    padding: 12px 14px 10px 14px;
+}
+
+/* ---------- school header: centred between the logo and a matching gutter ---------- */
+
+.rf-header {
+    width: 100%;
+    border-collapse: collapse;
+    border-bottom: 3px double #000;
+    margin-bottom: 8px;
+}
+
+.rf-header td {
+    vertical-align: middle;
+    padding: 0 0 8px 0;
+}
+
+.rf-header td.rf-logo {
+    width: 78px;
+}
+
+.rf-logo img {
+    width: 70px;
+    height: auto;
+}
+
+.rf-header td.rf-school {
+    text-align: center;
+}
+
+/* Balances the logo so the school name is centred on the page. */
+.rf-header td.rf-gutter {
+    width: 78px;
+}
+
+.rf-school-name {
+    font-size: 18px;
+    line-height: 21px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    margin-bottom: 2px;
+}
+
+.rf-school-line {
+    font-size: 11px;
+    line-height: 14px;
+}
+
+.rf-motto {
+    font-size: 11px;
+    line-height: 14px;
+    font-style: italic;
+}
+
+/* ---------- report title ---------- */
+
+.rf-title {
+    text-align: center;
+    font-size: 15px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+}
+
+.rf-title-line {
+    text-align: center;
+    font-size: 12px;
+    margin-bottom: 8px;
+}
+
+/* ---------- pupil particulars: a ruled label / value grid ---------- */
+
+.rf-pupil {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 8px;
+}
+
+.rf-pupil td {
+    border: 1px solid #000;
+    padding: 5px 7px;
+    font-size: 12px;
+    vertical-align: middle;
+}
+
+.rf-pupil td.rf-key {
+    width: 96px;
+    background: #e8e8e8;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.rf-student {
+    font-size: 14px;
+    font-weight: bold;
+}
+
+/* ---------- marks table: full grid ---------- */
+
+.rf-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 8px;
+}
+
+.rf-table th {
+    border: 1px solid #000;
+    background: #e8e8e8;
+    font-size: 11px;
+    font-weight: bold;
+    padding: 6px 7px;
+    text-align: left;
+}
+
+.rf-table th.rf-centre {
+    text-align: center;
+}
+
+.rf-table td {
+    vertical-align: middle;
+    border: 1px solid #000;
+    padding: 8px 7px;
+    font-size: 13px;
+}
+
+.rf-table td.rf-no {
+    width: 22px;
+    text-align: center;
+}
+
+.rf-table td.rf-mark {
+    width: 110px;
+    text-align: center;
+    font-weight: bold;
+}
+
+.rf-table td.rf-level {
+    width: 190px;
+    text-align: center;
+}
+
+/* The term card has two mark/level pairs: tighter rows and narrower columns. */
+.rf-term td {
+    padding: 4px 7px;
+    font-size: 12px;
+}
+
+.rf-term td.rf-mark {
+    width: 66px;
+}
+
+.rf-term td.rf-level {
+    width: 136px;
+    font-size: 11px;
+}
+
+/* Paper rows come before the subject they roll up into: indented, italic,
+   unbanded, with only a dotted rule between them and their subject. */
+.rf-table tr.rf-paper td {
+    padding-top: 2px;
+    padding-bottom: 2px;
+    font-size: 11px;
+    border-bottom: 1px dotted #000;
+}
+
+.rf-table tr.rf-paper td.rf-subject {
+    padding-left: 22px;
+    font-style: italic;
+}
+
+.rf-table tr.rf-paper td.rf-mark {
+    font-weight: normal;
+}
+
+.rf-table tfoot td {
+    border-top: 3px double #000;
+    background: #e8e8e8;
+    font-size: 13px;
+    font-weight: bold;
+    padding-top: 6px;
+    padding-bottom: 6px;
+}
+
+.rf-table tr {
+    page-break-inside: avoid;
+}
+
+/* ---------- class teacher's remarks: a headed box ---------- */
+
+.rf-remarks {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 8px;
+}
+
+.rf-remarks td {
+    border: 1px solid #000;
+    padding: 5px 7px;
+}
+
+.rf-remarks td.rf-remarks-head {
+    background: #e8e8e8;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.rf-remarks-text {
+    font-size: 12px;
+    line-height: 16px;
+}
+
+/* Blank fill-in line inside the remarks box. */
+.rf-rule {
+    border-bottom: 1px dotted #000;
+    font-size: 1px;
+    line-height: 1px;
+    height: 20px;
+}
+
+/* ---------- fee, dates and signatures: label / value cells ---------- */
+
+.rf-fields {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 8px;
+}
+
+.rf-fields td {
+    border: 1px solid #000;
+    padding: 5px 7px;
+    font-size: 12px;
+    vertical-align: middle;
+}
+
+.rf-fields td.rf-key {
+    width: 150px;
+    background: #e8e8e8;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.rf-fields td.rf-val {
+    font-weight: bold;
+}
+
+/* A signature cell is left tall and empty: the box is the fill-in space. */
+.rf-fields tr.rf-sign td {
+    height: 34px;
+}
+
+.rf-sign-name {
+    font-weight: normal;
+    font-style: italic;
+}
+
+/* ---------- footer ---------- */
+
+.rf-footer {
+    text-align: center;
+    font-size: 10px;
+    font-style: italic;
+}

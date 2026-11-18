@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Notification as Notifier;
 use Throwable;
 
 /**
- * Sends operational alerts to config('educa.ops.alert_email').
+ * Sends operational alerts to config('elimupass.ops.alert_email').
  *
  * Alerts are sent SYNCHRONOUSLY and the notifications do not implement
  * ShouldQueue. That is the point: the most important alert is "the queue is
@@ -26,7 +26,7 @@ class OpsAlerts
 
     public function send(Notification $notification, string $summary): void
     {
-        $address = config('educa.ops.alert_email');
+        $address = config('elimupass.ops.alert_email');
 
         Log::warning("[ops] {$summary}");
 

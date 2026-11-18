@@ -64,7 +64,7 @@ class QueueOperationsTest extends TestCase
         $this->exam = $this->tenancy()->asSchool($this->school, fn () => Exam::query()->firstOrFail());
         $this->setStatus($this->exam, ExamStatus::MARKING);
 
-        config(['educa.ops.alert_email' => 'ops@educa.test']);
+        config(['elimupass.ops.alert_email' => 'ops@educa.test']);
     }
 
     // ---------------------------------------------------------------- helpers
@@ -114,7 +114,7 @@ class QueueOperationsTest extends TestCase
     {
         $health = app(QueueHealth::class);
 
-        foreach (config('educa.queue.workers') as $worker) {
+        foreach (config('elimupass.queue.workers') as $worker) {
             $health->recordWorkerHeartbeat($worker['connection'], $worker['queues']);
         }
 
@@ -302,7 +302,7 @@ class QueueOperationsTest extends TestCase
 
     private function up(): TestResponse
     {
-        config(['educa.queue.check_on_up' => true, 'app.debug' => false]);
+        config(['elimupass.queue.check_on_up' => true, 'app.debug' => false]);
 
         return $this->get('/up');
     }
@@ -312,6 +312,22 @@ class QueueOperationsTest extends TestCase
         $this->everythingReportsIn();
 
         $this->up()->assertOk();
+    }
+
+    public function test_the_deploy_check_fails_until_a_worker_runs_with_the_configured_queues(): void
+    {
+        // The server still runs last release's command line.
+        app(QueueHealth::class)->recordWorkerHeartbeat('database', 'results');
+        app(QueueHealth::class)->recordWorkerHeartbeat('database-long', 'reports,notifications,default');
+
+        $this->artisan('ops:check-workers')
+            ->expectsOutputToContain('educa-general')
+            ->assertFailed();
+
+        $this->everythingReportsIn();
+        $this->travel(10)->minutes();   // a worker that has since died is not this check's business
+
+        $this->artisan('ops:check-workers')->assertSuccessful();
     }
 
     public function test_up_fails_when_a_worker_stops_reporting(): void
@@ -337,7 +353,7 @@ class QueueOperationsTest extends TestCase
     {
         $this->everythingReportsIn();
         $this->travel(11)->minutes();
-        foreach (config('educa.queue.workers') as $w) {
+        foreach (config('elimupass.queue.workers') as $w) {
             app(QueueHealth::class)->recordWorkerHeartbeat($w['connection'], $w['queues']);
         }
 
@@ -346,7 +362,7 @@ class QueueOperationsTest extends TestCase
 
     public function test_up_ignores_the_queue_when_the_check_is_disabled(): void
     {
-        config(['educa.queue.check_on_up' => false, 'app.debug' => false]);
+        config(['elimupass.queue.check_on_up' => false, 'app.debug' => false]);
 
         $this->get('/up')->assertOk();
     }
@@ -373,7 +389,7 @@ class QueueOperationsTest extends TestCase
     public function test_no_mail_is_attempted_without_an_alert_address(): void
     {
         Notification::fake();
-        config(['educa.ops.alert_email' => null]);
+        config(['elimupass.ops.alert_email' => null]);
 
         $this->artisan('ops:check-queue')->assertFailed();
 
