@@ -49,6 +49,17 @@ return [
         'idle_days' => (int) env('SESSION_IDLE_DAYS', 30),
     ],
 
+    // Teaching materials (docs/teaching-materials.md). The disk must be private:
+    // files are only ever served through the authenticated download routes.
+    'materials' => [
+        'disk' => env('MATERIALS_DISK', 'local'),
+        // Per file. PHP upload_max_filesize / post_max_size and nginx
+        // client_max_body_size must allow a little more (25M).
+        'max_kb' => (int) env('MATERIALS_MAX_KB', 20480),
+        // A deleted material can be restored for this long; materials:prune then removes it.
+        'retention_days' => (int) env('MATERIALS_RETENTION_DAYS', 30),
+    ],
+
     'ops' => [
         // Where queue incidents, recoveries and failed jobs are mailed. Unset =
         // alerts are only logged.

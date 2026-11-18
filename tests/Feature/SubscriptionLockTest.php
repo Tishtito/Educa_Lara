@@ -15,7 +15,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Route as Router;
 use Tests\TestCase;
 
-/** Exams, marking, mark lists and report cards lock when a school's subscription lapses. */
+/** Exams, marking, mark lists, report cards, timetables and teaching materials lock when a school's subscription lapses. */
 class SubscriptionLockTest extends TestCase
 {
     use RefreshDatabase;
@@ -72,6 +72,17 @@ class SubscriptionLockTest extends TestCase
         'POST api/teacher-subjects/from-examiners',
         'GET api/me/timetable',
         'GET api/my/classes/{schoolClass}/timetable',
+        'GET api/teaching-materials',
+        'GET api/teaching-materials/summary',
+        'POST api/teaching-materials',
+        'PATCH api/teaching-materials/{material}',
+        'POST api/teaching-materials/{material}/file',
+        'DELETE api/teaching-materials/{material}',
+        'POST api/teaching-materials/{material}/restore',
+        'GET api/teaching-materials/{material}/download',
+        'GET api/my/teaching-materials',
+        'GET api/my/teaching-materials/summary',
+        'GET api/my/teaching-materials/{material}/download',
     ];
 
     private School $school;
@@ -123,7 +134,7 @@ class SubscriptionLockTest extends TestCase
                 [$method, $uri] = explode(' ', $route, 2);
                 $url = '/'.strtr($uri, [
                     '{exam}' => (string) $this->exam->id, '{enrolment}' => '1', '{batch}' => '1',
-                    '{timetable}' => '1', '{lesson}' => '1', '{schoolClass}' => '1', '{user}' => '1', '{bellSchedule}' => '1',
+                    '{timetable}' => '1', '{lesson}' => '1', '{schoolClass}' => '1', '{user}' => '1', '{bellSchedule}' => '1', '{material}' => '1',
                 ]);
 
                 $this->app['auth']->forgetGuards();

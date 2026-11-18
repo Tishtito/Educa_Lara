@@ -89,6 +89,12 @@
         "examiner": false,
         "super_admin": true
     },
+    "DELETE api/teaching-materials/{material}": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
     "DELETE api/timetable/bell-schedules/{bellSchedule}": {
         "school_admin": true,
         "class_teacher": false,
@@ -299,6 +305,24 @@
         "examiner": false,
         "super_admin": true
     },
+    "GET api/my/teaching-materials": {
+        "school_admin": true,
+        "class_teacher": true,
+        "examiner": true,
+        "super_admin": true
+    },
+    "GET api/my/teaching-materials/summary": {
+        "school_admin": true,
+        "class_teacher": true,
+        "examiner": true,
+        "super_admin": true
+    },
+    "GET api/my/teaching-materials/{material}/download": {
+        "school_admin": true,
+        "class_teacher": true,
+        "examiner": true,
+        "super_admin": true
+    },
     "GET api/permissions": {
         "school_admin": true,
         "class_teacher": false,
@@ -431,6 +455,24 @@
         "examiner": false,
         "super_admin": true
     },
+    "GET api/teaching-materials": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/teaching-materials/summary": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "GET api/teaching-materials/{material}/download": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
     "GET api/terms": {
         "school_admin": true,
         "class_teacher": false,
@@ -558,6 +600,12 @@
         "super_admin": true
     },
     "PATCH api/subjects/{subject}": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "PATCH api/teaching-materials/{material}": {
         "school_admin": true,
         "class_teacher": false,
         "examiner": false,
@@ -804,6 +852,24 @@
         "super_admin": true
     },
     "POST api/teaching-assignments/from-examiners": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/teaching-materials": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/teaching-materials/{material}/file": {
+        "school_admin": true,
+        "class_teacher": false,
+        "examiner": false,
+        "super_admin": true
+    },
+    "POST api/teaching-materials/{material}/restore": {
         "school_admin": true,
         "class_teacher": false,
         "examiner": false,

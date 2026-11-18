@@ -32,6 +32,8 @@ Schedule::command('queue:prune-batches')->daily();
 // Class PDFs are regenerated on request; issued cards live on as snapshots.
 Schedule::command('reports:prune-batches')->daily();
 
+Schedule::command('materials:prune')->daily();
+
 // Email delivery log retention (config elimupass.mail.log_retention_days).
 Schedule::command('mail:prune-log')->daily();
 

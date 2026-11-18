@@ -176,7 +176,7 @@ class StaffImportTest extends TestCase
         $this->actingAs($teacher, 'sanctum')
             ->getJson('/api/auth/me')
             ->assertOk()
-            ->assertJsonPath('data.permissions', ['access_staff_portal', 'view_own_timetable']);
+            ->assertJsonPath('data.permissions', ['access_staff_portal', 'view_own_timetable', 'view_teaching_materials']);
 
         $this->getJson('/api/me/timetable')->assertOk();
         $this->getJson('/api/me/exams')->assertOk();

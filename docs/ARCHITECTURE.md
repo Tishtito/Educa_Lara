@@ -655,6 +655,7 @@ app/Domain/
                 BelongsToSchool
   Timetabling/  BellSchedule, BellPeriod, LessonRequirement, TeachingAssignment,
                 Timetable, TimetableLesson + Solver/ (pure) + Services/
+  Resources/    TeachingMaterial + TeachingMaterialAccess + Services/
   LegacyImport/ LegacyImporter + Steps/, Profiles/ (per-section curriculum),
                 Mapping/ (MigrationMap, class and name parsing), Review/
                 (DecisionBook), Verification/, Repositories/ (legacy reads)
@@ -710,6 +711,7 @@ student).
 | Subscriptions: one per school (price and cycle set by the superadmin, trial, credit balance), `subscribed` lock (402) on exams, marking, mark lists and report cards, M-Pesa STK push + Paybill webhooks with reconciliation, receipts and reminders, platform billing — `docs/billing.md` | done, tested (Daraja faked; not yet run against the sandbox) |
 | SMS | not started — legacy only ever appended to `logs/sms.log`; no gateway existed |
 | Timetables: bell schedules per level (CBC defaults), lessons per week, subject teachers (filled from examiners, copied between years), readiness check, queued generation with a repairing solver, draft editing (move/swap/lock), publication, staff portal "my timetable" and class timetable | done, tested (`TimetableSolverTest`, `TimetablesApiTest`); new build |
+| Teaching materials: files shared with teachers by section and grade, private disk, draft/publish, replace, soft delete + `materials:prune`, portal "My grades" — `docs/teaching-materials.md` | done, tested (`TeachingMaterialsApiTest`); new build, paid feature |
 | Fees, attendance, parent/student portals | absent from legacy; new build, not conversion |
 
 Remaining conversion work, in the order it unblocks the most: the first real
